@@ -1,16 +1,12 @@
-use iced::event::Status;
-use iced::futures::stream::BufferUnordered;
-use iced::theme::palette;
 use iced::widget::{
     Column, Container, Row, Text, button, column, container, horizontal_space, row, scrollable,
     text, text_input,
 };
 use iced::{
-    alignment, event, keyboard, theme, Alignment, Background, Border, Color, Element, Event, Padding, Settings, Shadow, Subscription, Theme
+    alignment, Element, Padding, Theme
 };
 use iced::{
     Length::{self},
-    border::Radius,
     widget::vertical_space,
 };
 
@@ -56,6 +52,25 @@ impl Chat {
     }
 
     pub fn view(&self) -> Element<Message> {
+        let scrollable_container = self.get_messages_widget();
+        let input_row = self.get_input_row_widget();
+
+        container(
+            column![
+                scrollable_container.width(Length::Fixed(600.0)),
+                input_row.width(Length::Fixed(600.0)),
+            ]
+            .padding(20)
+            .spacing(20)
+        )
+        .style(|_: &Theme| self.theme.background)
+        .height(Length::Fill)
+        .width(Length::FillPortion(10))
+        .align_x(alignment::Horizontal::Center)
+        .into()
+    }
+
+    fn get_messages_widget(&self) -> Container<'_, Message> {
         let messages: Element<_> = self
             .messages
             .iter()
@@ -67,18 +82,18 @@ impl Chat {
                     container(bubble).width(Length::FillPortion(7)),
                     horizontal_space().width(Length::FillPortion(3)),
                 ],]
-                .width(Length::FillPortion(10))
-                .align_x(alignment::Horizontal::Left)
-                .padding(Padding {
-                    top: 0.0,
-                    right: 30.0,
-                    bottom: 30.0,
-                    left: 30.0,
-                });
+                    .width(Length::FillPortion(10))
+                    .align_x(alignment::Horizontal::Left)
+                    .padding(Padding {
+                        top: 0.0,
+                        right: 30.0,
+                        bottom: 30.0,
+                        left: 30.0,
+                    });
 
                 col.push(row)
             })
-            .into();
+        .into();
 
         let scrollable_messages = scrollable(messages)
             .id(self.scroll.clone())
@@ -87,14 +102,15 @@ impl Chat {
         let scrollable_container = container(column![
             vertical_space().height(Length::Fill),
             scrollable_messages
-                .height(Length::Shrink)
-                .width(Length::Fill)
+            .height(Length::Shrink)
+            .width(Length::Fill)
         ])
-        .style(|_: &Theme| self.theme.scrollable_container)
-        .width(Length::Fill)
-        .align_y(alignment::Vertical::Bottom)
-        .align_x(alignment::Horizontal::Right);
+            .style(|_: &Theme| self.theme.scrollable_container);
 
+        return scrollable_container;
+    }
+
+    fn get_input_row_widget(&self) -> Container<'_, Message> {
         let message_input = text_input("Type a message...", &self.input_value)
             .on_input(Message::InputChanged)
             .padding(10)
@@ -108,30 +124,8 @@ impl Chat {
             .on_press(Message::SendPressed)
             .padding(10);
 
-        let input_row = container(row![message_input, send_button].spacing(10))
-            .width(Length::Fill)
-            .align_x(alignment::Horizontal::Center);
+        let input_row = container(row![message_input, send_button].spacing(10));
 
-        container(
-            column![
-                row![
-                    horizontal_space().width(Length::FillPortion(3)),
-                    scrollable_container.width(Length::FillPortion(4)),
-                    horizontal_space().width(Length::FillPortion(3)),
-                ],
-                row![
-                    horizontal_space().width(Length::FillPortion(3)),
-                    input_row.width(Length::FillPortion(3)),
-                    horizontal_space().width(Length::FillPortion(3))
-                ]
-            ]
-            .padding(20)
-            .spacing(20)
-            .align_x(alignment::Horizontal::Center),
-        )
-        .style(|_: &Theme| self.theme.background)
-        .height(Length::Fill)
-        .width(Length::FillPortion(10))
-        .into()
+        return input_row;
     }
 }

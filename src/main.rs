@@ -5,5 +5,5 @@ mod app_theme;
 mod chat;
 
 pub fn main() -> iced::Result {
-    iced::run("A cool counter", Chat::update, Chat::view)
+    iced::run("Chat", Chat::update, Chat::view)
 }

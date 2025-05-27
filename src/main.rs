@@ -1,9 +1,13 @@
-use chat::Chat;
+mod config;
+mod theme;
+mod ui;
+mod controller;
 
-mod api;
-mod app_theme;
-mod chat;
+use ui::Ui;
+
 
 pub fn main() -> iced::Result {
-    iced::run("Chat", Chat::update, Chat::view)
+    iced::application("Chat", Ui::update, Ui::view)
+        .subscription(Ui::subscription)
+        .run()
 }

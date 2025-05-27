@@ -8,6 +8,10 @@ pub struct AppTheme {
     pub chat: ChatTheme,
 }
 
+pub struct TextStyle {
+    pub text_size: u8
+}
+
 impl Default for AppTheme {
     fn default() -> AppTheme {
         let chat = ChatTheme {

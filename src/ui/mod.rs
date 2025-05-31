@@ -1,10 +1,10 @@
 mod render;
 mod widgets;
 
-use iced::widget::scrollable;
 use iced::Subscription;
+use iced::widget::scrollable;
 
-use crate::controller::{self, connect_to_chat};
+use crate::controller::{self, controller_subscription};
 use crate::theme::{AppTheme, ChatTheme};
 
 #[derive(Debug, Clone)]
@@ -12,12 +12,12 @@ pub enum Event {
     InputChanged(String),
     InputSubmitted,
     ShowMessageFromInput,
-    Controller(controller::ReceiveEvent)
+    Controller(controller::ReceiveEvent),
 }
 
 enum UserMessage {
     Incoming(String),
-    Sent(String)
+    Sent(String),
 }
 
 pub struct Ui {
@@ -47,28 +47,31 @@ impl Ui {
             Event::InputSubmitted => {
                 let input_value = self.get_input_value();
 
-                if !input_value.is_empty() {
-
-                }
+                if !input_value.is_empty() {}
             }
             Event::ShowMessageFromInput => {
                 let message_content = self.get_input_value();
                 self.messages.push(UserMessage::Sent(message_content));
                 self.input_value.clear();
-            },
+            }
             Event::Controller(event) => self.handle_controller_event(event),
         }
     }
 
     fn handle_controller_event(&mut self, event: controller::ReceiveEvent) -> () {
         match event {
+            controller::ReceiveEvent::ConnectionError => {
+            },
+            controller::ReceiveEvent::ServerError => {
+            },
+            controller::ReceiveEvent::Error => {
+            },
             controller::ReceiveEvent::Message(message_content) => {
                 self.messages.push(UserMessage::Sent(message_content));
-
             }
             controller::ReceiveEvent::Disconnected => {
-                self.show_error("Client is not connected".to_string());
             }
+            controller::ReceiveEvent::Connected => todo!(),
         }
     }
 
@@ -77,7 +80,6 @@ impl Ui {
     }
 
     pub fn subscription(&self) -> Subscription<Event> {
-        Subscription::run(connect_to_chat).map(Event::Controller)
+        Subscription::run(controller_subscription).map(Event::Controller)
     }
 }
-

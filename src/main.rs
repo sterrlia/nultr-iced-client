@@ -1,4 +1,3 @@
-mod logger;
 mod config;
 mod theme;
 mod ui;

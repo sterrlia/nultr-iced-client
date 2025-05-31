@@ -1,6 +1,6 @@
+use iced::widget::shader::wgpu::Color;
 use iced::widget::{
-    Column, Container, button, column, container, horizontal_space, row, scrollable,
-    text, text_input,
+    button, center, column, container, horizontal_space, mouse_area, opaque, row, scrollable, stack, text, text_input, Column, Container
 };
 use iced::{alignment, Element, Padding, Theme};
 use iced::{
@@ -93,7 +93,26 @@ impl Ui {
         return input_row;
     }
 
-    pub fn show_error(&self, message: String) {
+    pub fn get_error_modal_widget(&self, message: String) {
+
         todo!()
     }
+}
+
+fn modal<'a, Message>(
+    base: impl Into<Element<'a, Message>>,
+    content: impl Into<Element<'a, Message>>,
+    on_blur: Message,
+) -> Element<'a, Message>
+where
+    Message: Clone + 'a,
+{
+    stack![
+        base.into(),
+        opaque(
+            mouse_area(center(opaque(content)))
+            .on_press(on_blur)
+        )
+    ]
+    .into()
 }

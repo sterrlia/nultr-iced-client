@@ -1,0 +1,2 @@
+http_url = 'http://localhost:3005'
+ws_url = 'ws://localhost:3005/ws'

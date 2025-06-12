@@ -6,6 +6,8 @@ use tokio::{
 };
 use url::Url;
 
+use crate::auth;
+
 use super::client;
 
 type ReceivedReceiveEventResult = Result<client::Response, client::ResponseReceiveError>;
@@ -37,7 +39,11 @@ pub enum Error {
 
 #[derive(Debug, Clone)]
 pub enum SendEvent {
-    Connect(Url),
+    Connect {
+        url: Url,
+        token: auth::Token
+    },
+    Disconnect,
     Message { user_id: i32, content: String },
 }
 
@@ -98,13 +104,18 @@ impl EventHandler {
 
     pub async fn handle_send(&mut self, event: SendEvent) -> StreamItem {
         match event {
-            SendEvent::Connect(url) => {
-                let result = self.ws_client.connect(url).await;
+            SendEvent::Connect { url, token } => {
+                let result = self.ws_client.connect(url, token).await;
 
                 match result {
                     Err(error) => Err(error.into()),
                     Ok(_) => Ok(Event::Connected),
                 }
+            }
+            SendEvent::Disconnect => {
+                self.ws_client.disconnect().await;
+
+                Ok(Event::Disconnected)
             }
             SendEvent::Message { user_id, content } => {
                 let request = client::Request::MessageToUser { user_id, content };

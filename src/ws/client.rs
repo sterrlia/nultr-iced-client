@@ -5,15 +5,16 @@ use thiserror::Error;
 use futures::{SinkExt, Stream, StreamExt as FuturesStreamExt, stream};
 use log::{info, trace, warn};
 use serde::{Deserialize, Serialize};
-use tokio_tungstenite::tungstenite;
+use tokio_tungstenite::tungstenite::{self, protocol::WebSocketConfig};
+use tungstenite::client::IntoClientRequest;
 use url::Url;
 
 type WsWriteStream = stream::SplitSink<
-tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
-tungstenite::Message,
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    tungstenite::Message,
 >;
 type WsReadStream = stream::SplitStream<
-tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
+    tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
 >;
 
 pub type ConnectionError = String;
@@ -21,7 +22,7 @@ pub type ConnectionError = String;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Request {
-    MessageToUser { user_id: i32, content: String }
+    MessageToUser { user_id: i32, content: String },
 }
 
 #[derive(Debug, Clone)]
@@ -70,10 +71,7 @@ impl Channel {
     pub async fn send(&mut self, request: Request) -> Result<(), RequestSendError> {
         match request {
             Request::MessageToUser { user_id, content } => {
-                let message = Request::MessageToUser {
-                    user_id,
-                    content
-                };
+                let message = Request::MessageToUser { user_id, content };
                 let serialized_message = serde_json::to_string(&message)
                     .map_err(|err| RequestSendError::Serialization(err.to_string()))?;
 
@@ -98,8 +96,15 @@ impl Channel {
 }
 
 impl Instance {
-    pub async fn connect(&mut self, url: Url) -> Result<(), ConnectionError> {
-        let (ws_stream, _) = tokio_tungstenite::connect_async(url)
+    pub async fn connect(&mut self, url: Url, token: String) -> Result<(), ConnectionError> {
+        let request = tungstenite::http::Request::builder()
+            .method("GET")
+            .header("Bearer", token)
+            .uri(url.to_string())
+            .body(())
+            .map_err(|err| err.to_string())?;
+
+        let (ws_stream, _) = tokio_tungstenite::connect_async(request)
             .await
             .map_err(|err| err.to_string())?;
 
@@ -138,7 +143,7 @@ impl Instance {
         }
     }
 
-    async fn disconnect(&mut self) {
+    pub async fn disconnect(&mut self) {
         self.state = State::Disconnected;
 
         if let Some(channel) = &mut self.channel {

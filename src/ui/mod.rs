@@ -1,139 +1,130 @@
 mod app;
-mod render;
+mod parts;
+mod theme;
 mod util;
-mod widgets;
+mod view;
 
-use iced::Subscription;
-use iced::widget::scrollable;
+use std::sync::Arc;
+
+use iced::{Subscription, Task};
+use parts::{chat, error_popup, login_form};
+use tokio::sync::mpsc;
 use util::event_task;
 
-use crate::theme::{AppTheme, ChatTheme};
-use crate::{config, ws};
+use crate::{auth, config, http, ws};
 
-enum ConnectionState {
-    Connected,
-    Disconnected,
+#[derive(Debug, Clone)]
+enum AuthState {
+    Authorized(auth::UserData),
+    Unauthorized,
 }
 
 #[derive(Debug, Clone)]
 pub enum Event {
-    InputChanged(String),
-    SendMessage,
-    Controller(ws::controller::StreamItem),
-    DismissError(usize),
-    Connect,
-    Error(String),
+    LoginForm(login_form::Event),
+    Chat(chat::Event),
+    ErrorPopup(error_popup::Event),
+    FromWs(ws::controller::StreamItem),
+    ToWs(ws::controller::SendEvent),
+    Authenticated(auth::UserData),
 }
-
-enum UserMessage {
-    Received(String),
-    Sent(String),
-}
-
-type AppError = String;
 
 pub struct Ui {
-    theme: ChatTheme,
+    theme: theme::App,
     state: State,
-    service: app::Service,
+    chat: chat::Widget,
+    login: login_form::Widget,
+    error_popup: error_popup::Widget,
+    ws_sender: Option<mpsc::UnboundedSender<ws::controller::SendEvent>>,
 }
 
-struct UserData {
-    user_id: i32,
-    token: String,
-}
-
+#[derive(Debug, Clone)]
 struct State {
-    input_value: String,
-    messages: Vec<UserMessage>,
-    error_messages: Vec<AppError>,
-    messages_scrollable: scrollable::Id,
-    error_messages_scrollable: scrollable::Id,
-    connection_state: ConnectionState,
-    selected_user_id: Option<i32>,
-    logged_user_data: Option<UserData>,
+    auth_state: AuthState,
 }
 
 impl Default for Ui {
     fn default() -> Self {
-        let theme = AppTheme::default().chat;
-        let service = app::Service::default();
+        let theme = theme::Collection::default();
+        let http_client = Arc::new(http::api::Client::default());
+
+        let chat = chat::Widget {
+            theme: theme.chat,
+            http_client: http_client.clone(),
+            state: chat::State::default(),
+        };
+        let login = login_form::Widget {
+            theme: theme.login_form,
+            http_client,
+            state: login_form::State::default(),
+        };
+        let error = error_popup::Widget {
+            theme: theme.error_popup,
+            state: error_popup::State::default(),
+        };
 
         let state = State {
-            input_value: "".to_string(),
-            messages: Vec::new(),
-            error_messages: Vec::new(),
-            messages_scrollable: scrollable::Id::new("1"),
-            error_messages_scrollable: scrollable::Id::new("2"),
-            connection_state: ConnectionState::Disconnected,
-            selected_user_id: None,
-            logged_user_data: None,
+            auth_state: AuthState::Unauthorized,
         };
 
         Self {
-            theme,
+            theme: theme.app,
             state,
-            service,
+            chat,
+            login,
+            error_popup: error,
+            ws_sender: None,
         }
     }
 }
 
 impl Ui {
-    pub fn update(&mut self, event: Event) -> iced::Task<Event> {
-        match event {
-            Event::InputChanged(new_value) => {
-                self.state.input_value = new_value;
-
-                iced::Task::none()
+    pub fn update(&mut self, event: Event) -> Task<Event> {
+        match (self.state.auth_state.clone(), event) {
+            (AuthState::Unauthorized, Event::LoginForm(event)) => self.login.update(event),
+            (AuthState::Authorized(user_data), Event::Chat(event)) => {
+                self.chat.update(user_data, event)
             }
-            Event::SendMessage => {
-                let input_value = self.state.input_value.trim().to_string();
-
-                if !input_value.is_empty() {
-                    return iced::Task::none();
-                };
-
-                if let Some(user_id) = self.state.selected_user_id {
-                    self.state
-                        .messages
-                        .push(UserMessage::Sent(input_value.clone()));
-
-                    self.state.input_value.clear();
-
-                    let controller_event = ws::controller::SendEvent::Message {
-                        user_id,
-                        content: input_value,
-                    };
-
-                    self.service.send_event(controller_event)
-                } else {
-                    event_task(Event::Error("User is not chosen".to_string()))
-                }
-            }
-            Event::Controller(result) => match result {
-                Ok(event) => self.handle_controller_event(event),
+            (_, Event::ErrorPopup(event)) => self.error_popup.update(event),
+            (AuthState::Authorized(user_data), Event::FromWs(result)) => match result {
+                Ok(event) => self.handle_controller_event(user_data, event),
                 Err(error) => self.handle_controller_error(error),
             },
-            Event::DismissError(index) => {
-                self.state.error_messages.remove(index);
+            (AuthState::Authorized(_), Event::ToWs(event)) => {
+                if let Some(sender) = self.ws_sender.clone() {
+                    if let Err(error) = sender.send(event) {
+                        tracing::error!("Send error {error}");
 
-                iced::Task::none()
+                        event_task(Event::ErrorPopup(error_popup::Event::AddMessage(
+                            "Unable to connect to server".to_string(),
+                        )))
+                    } else {
+                        Task::none()
+                    }
+                } else {
+                    event_task(Event::ErrorPopup(error_popup::Event::AddMessage(
+                        "Unable to connect to server".to_string(),
+                    )))
+                }
             }
-            Event::Connect => {
-                let ws_url = config::get_variables().ws_url.clone();
-                let controller_event = ws::controller::SendEvent::Connect(ws_url);
+            (_, Event::Authenticated(user_data)) => {
+                self.state.auth_state = AuthState::Authorized(user_data);
 
-                self.service.send_event(controller_event)
+                let connect_event = chat::Event::Reconnect;
+                event_task(Event::Chat(connect_event))
             }
-            Event::Error(message) => {
-                self.state.error_messages.push(message);
 
-                iced::Task::none()
-            }
+            (AuthState::Authorized(_), Event::LoginForm(_)) => event_task(Event::ErrorPopup(
+                error_popup::Event::AddMessage("Already authorized".to_string()),
+            )),
+
+            (AuthState::Unauthorized, _) => event_task(Event::ErrorPopup(
+                error_popup::Event::AddMessage("Unauthorized".to_string()),
+            )),
         }
     }
 
-    fn handle_controller_error(&mut self, error: ws::controller::Error) -> iced::Task<Event> {
+    fn handle_controller_error(&mut self, error: ws::controller::Error) -> Task<Event> {
         let message = match error {
             ws::controller::Error::Connection => "Connection error",
             ws::controller::Error::Send => "Send error",
@@ -143,32 +134,38 @@ impl Ui {
             ws::controller::Error::Unknown => "Unknown error",
         };
 
-        event_task(Event::Error(message.to_string()))
+        event_task(Event::ErrorPopup(error_popup::Event::AddMessage(
+            message.to_string(),
+        )))
     }
 
-    fn handle_controller_event(&mut self, event: ws::controller::Event) -> iced::Task<Event> {
+    fn handle_controller_event(
+        &mut self,
+        user_data: auth::UserData,
+        event: ws::controller::Event,
+    ) -> Task<Event> {
         match event {
-            ws::controller::Event::Ready(message_sender) => {
-                self.service.set_message_sender(message_sender);
-            }
-            ws::controller::Event::Message(message_content) => {
-                self.state
-                    .messages
-                    .push(UserMessage::Received(message_content));
-            }
-            ws::controller::Event::Disconnected => {
-                self.state.connection_state = ConnectionState::Disconnected;
-            }
-            ws::controller::Event::Connected => {
-                self.state.connection_state = ConnectionState::Connected;
-            }
-            ws::controller::Event::MessageSent => {}
-        };
+            ws::controller::Event::Ready(ws_sender) => {
+                self.ws_sender = Some(ws_sender);
 
-        iced::Task::none()
+                iced::Task::none()
+            }
+            ws::controller::Event::Message(message_content) => self
+                .chat
+                .update(user_data, chat::Event::Message(message_content)),
+
+            ws::controller::Event::Disconnected => {
+                self.chat.update(user_data, chat::Event::Disconnected)
+            }
+
+            ws::controller::Event::Connected => self.chat.update(user_data, chat::Event::Connected),
+            ws::controller::Event::MessageSent => {
+                self.chat.update(user_data, chat::Event::MessageSent)
+            }
+        }
     }
 
     pub fn subscription(&self) -> Subscription<Event> {
-        Subscription::run(ws::controller::subscription).map(Event::Controller)
+        Subscription::run(ws::controller::subscription).map(Event::FromWs)
     }
 }

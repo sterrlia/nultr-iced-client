@@ -1,17 +1,37 @@
-use iced::widget::shader::wgpu::Color;
-use iced::widget::{
-    Button, Column, Container, Text, button, center, column, container, horizontal_space,
-    mouse_area, opaque, row, scrollable, stack, text, text_input,
-};
-use iced::{Element, Padding, Theme, alignment};
 use iced::{
-    Length::{self},
-    widget::vertical_space,
+    Element, Length, Padding, Theme, alignment,
+    widget::{
+        Column, Container, button, column, container, horizontal_space, row, scrollable, text,
+        text_input, vertical_space,
+    },
 };
 
-use super::{AppError, Event, Ui, UserMessage};
+use crate::ui;
 
-impl Ui {
+use super::{Event, UserMessage, Widget};
+
+impl Widget {
+    pub fn view(&self) -> Element<Event> {
+        let scrollable_container = self.get_messages_widget();
+        let input_row = match self.state.connection_state {
+            super::ConnectionState::Connected => self.get_input_row_widget(),
+            super::ConnectionState::Disconnected => self.get_connect_btn_widget(),
+        };
+
+        container(
+            column![
+                scrollable_container.width(Length::Fixed(600.0)),
+                input_row.width(Length::Fixed(600.0)),
+            ]
+            .padding(20)
+            .spacing(20),
+        )
+        .height(Length::Fill)
+        .width(Length::FillPortion(10))
+        .align_x(alignment::Horizontal::Center)
+        .into()
+    }
+
     pub fn get_messages_widget(&self) -> Container<'_, Event> {
         let messages: Element<_> = self
             .state
@@ -94,59 +114,10 @@ impl Ui {
         return input_row;
     }
 
-    pub fn get_error_messages_widget(&self) -> Container<'_, Event> {
-        let error_column = self
-            .state
-            .error_messages
-            .iter()
-            .enumerate()
-            .map(|(index, message)| self.get_error_modal_widget(index, message.clone()))
-            .fold(column![vertical_space().height(50)], |column, item| {
-                column.push(item)
-            });
-
-        let error_column_scrollable = scrollable(
-            error_column
-                .width(Length::Fill)
-                .spacing(10)
-                .align_x(alignment::Horizontal::Right),
-        )
-        .id(self.state.error_messages_scrollable.clone())
-        .height(Length::Fill);
-
-        container(
-            row![
-                horizontal_space().width(50),
-                error_column_scrollable,
-                horizontal_space().width(50),
-            ]
-            .width(Length::FillPortion(10)),
-        )
-        .style(|_| self.theme.error_modal.container)
-        .width(700)
-        .height(Length::Fill)
-    }
-
-    pub fn get_error_modal_widget(&self, index: usize, message: String) -> Container<'_, Event> {
-        container(
-            button(
-                column![text("Error"), text(message),]
-                    .spacing(10)
-                    .align_x(alignment::Horizontal::Left),
-            )
-            .on_press(Event::DismissError(index))
-            .style(|_, _| self.theme.error_modal.close_btn),
-        )
-        .padding(10)
-        .width(Length::Shrink)
-        .height(Length::Shrink)
-        .style(|_| self.theme.error_modal.message_container)
-    }
-
     pub fn get_connect_btn_widget(&self) -> Container<'_, Event> {
         container(
             button(text("Connect"))
-                .on_press(Event::Connect)
+                .on_press(Event::Reconnect)
                 .width(Length::Shrink),
         )
         .align_x(alignment::Horizontal::Center)

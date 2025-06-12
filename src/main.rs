@@ -1,8 +1,8 @@
 mod config;
-mod theme;
 mod ui;
 mod ws;
 mod http;
+mod auth;
 
 use ui::Ui;
 

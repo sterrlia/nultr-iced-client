@@ -20,25 +20,50 @@ impl Default for Client {
 }
 
 impl Client {
-    async fn get_raw_request_result<I>(
-        &self,
-        request: I,
-        session: Option<Session>,
-    ) -> Result<reqwest::Response, reqwest::Error>
+    pub async fn request<I, O, E>(&self, request: I, session: Option<Session>) -> Result<O, E>
     where
-        I: HttpRequest + Serialize,
+        O: for<'de> Deserialize<'de>,
+        E: From<reqwest::Error> + From<serde_json::Error>,
+        I: HttpRequest<O, E> + Serialize,
     {
-        let endpoint_url = I::get_url(self.base_url.clone());
-        let method = I::METHOD;
+        request
+            .perform(self.client.clone(), self.base_url.clone(), session)
+            .await
+    }
+}
 
-        let request_builder = self
-            .client
-            .request(method.clone(), endpoint_url)
-            .json(&request);
+pub trait HttpRequest<O, E>
+where
+    O: for<'de> Deserialize<'de>,
+    E: From<reqwest::Error> + From<serde_json::Error>,
+    Self: Sized + Serialize,
+{
+    const ENDPOINT: &'static str;
+    const METHOD: reqwest::Method;
+
+    fn get_url(base_url: Url) -> Url {
+        base_url.join(Self::ENDPOINT).unwrap()
+    }
+
+
+    async fn perform(
+        &self,
+        client: reqwest::Client,
+        base_url: Url,
+        session: Option<Session>,
+    ) -> Result<O, E> {
+        let endpoint_url = Self::get_url(base_url);
+        let method = Self::METHOD;
+
+        let request_builder = client.request(method.clone(), endpoint_url);
 
         let request_builder = match method {
-            reqwest::Method::GET => request_builder.query(&request),
-            _ => request_builder.json(&request),
+            reqwest::Method::GET => request_builder.query(&self),
+            _ => {
+                let body = serde_json::to_string(&self)?;
+
+                request_builder.body(body)
+            }
         };
 
         let request_builder = if let Some(session) = session {
@@ -47,28 +72,11 @@ impl Client {
             request_builder
         };
 
-        request_builder.send().await
-    }
-
-    pub async fn request<I, O, E>(&self, request: I, session: Option<Session>) -> Result<O, E>
-    where
-        O: for<'de> Deserialize<'de>,
-        E: for<'de> Deserialize<'de> + From<reqwest::Error> + From<serde_json::Error>,
-        I: HttpRequest + Serialize,
-    {
-        let response = self.get_raw_request_result(request, session).await?;
+        let response = request_builder.send().await?;
 
         let response_body = response.text().await?;
         let result: O = serde_json::from_str(response_body.as_ref())?;
+
         Ok(result)
-    }
-}
-
-pub trait HttpRequest {
-    const ENDPOINT: &'static str;
-    const METHOD: reqwest::Method;
-
-    fn get_url(base_url: Url) -> Url {
-        base_url.join(Self::ENDPOINT).unwrap()
     }
 }

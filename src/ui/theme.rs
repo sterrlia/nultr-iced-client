@@ -4,13 +4,16 @@ use iced::{
     widget::{button, container, text_input},
 };
 
-pub struct AppTheme {
+pub struct Collection {
+    pub app: App,
     pub chat: ChatTheme,
+    pub error_popup: ErrorPopup,
+    pub login_form: LoginForm,
 }
 
-impl Default for AppTheme {
-    fn default() -> AppTheme {
-        let error_modal =  ErrorModalStyle { 
+impl Default for Collection {
+    fn default() -> Collection {
+        let error_popup = ErrorPopup {
             message_container: container::Style {
                 background: Some(Background::Color([0.4, 0.0, 0.0, 0.7].into())),
                 border: Border {
@@ -34,16 +37,29 @@ impl Default for AppTheme {
             },
         };
 
-        let chat = ChatTheme {
-            send_btn: button::Style {
-                background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
-                text_color: Color::from_rgb(1.0, 1.0, 1.0),
-                border: Border {
-                    radius: Radius::new(10),
-                    ..Border::default()
-                },
-                shadow: Shadow::default(),
+        let btn = button::Style {
+            background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
+            text_color: Color::from_rgb(1.0, 1.0, 1.0),
+            border: Border {
+                radius: Radius::new(10),
+                ..Border::default()
             },
+            shadow: Shadow::default(),
+        };
+        let input = text_input::Style {
+            border: Border {
+                radius: Radius::new(10),
+                ..Border::default()
+            },
+            background: Background::Color(Color::from_rgb(1.0, 1.0, 1.0)),
+            icon: Color::from_rgb(1.0, 1.0, 1.0),
+            placeholder: Color::from_rgb(0.2, 0.2, 0.2),
+            value: Color::from_rgb(0.0, 0.0, 0.0),
+            selection: Color::from_rgb(0.2, 0.2, 0.2),
+        };
+
+        let chat = ChatTheme {
+            send_btn: btn,
             connect_btn: button::Style {
                 background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
                 text_color: Color::from_rgb(1.0, 1.0, 1.0),
@@ -53,17 +69,7 @@ impl Default for AppTheme {
                 },
                 shadow: Shadow::default(),
             },
-            input: text_input::Style {
-                border: Border {
-                    radius: Radius::new(10),
-                    ..Border::default()
-                },
-                background: Background::Color(Color::from_rgb(1.0, 1.0, 1.0)),
-                icon: Color::from_rgb(1.0, 1.0, 1.0),
-                placeholder: Color::from_rgb(0.2, 0.2, 0.2),
-                value: Color::from_rgb(0.0, 0.0, 0.0),
-                selection: Color::from_rgb(0.2, 0.2, 0.2),
-            },
+            input,
             scrollable_container: container::Style {
                 text_color: Some(Color::from_rgb(200.0, 44.0, 0.0)),
                 background: Some(Background::Color(Color::from_rgb(0.2, 0.2, 0.2))),
@@ -83,6 +89,14 @@ impl Default for AppTheme {
                 },
                 ..container::Style::default()
             },
+        };
+
+        let login_form = LoginForm {
+            login_btn: btn,
+            input,
+        };
+
+        let app = App {
             background: container::Style {
                 text_color: Some(Color::from_rgb(0.7, 0.3, 0.0)),
                 background: Some(Background::Color(Color::from_rgb(0.5, 0.5, 0.5))),
@@ -90,18 +104,22 @@ impl Default for AppTheme {
                     ..Border::default()
                 },
                 ..container::Style::default()
-            },
-            error_modal
+            }
         };
 
-        AppTheme { chat }
+        Collection {
+            app,
+            chat,
+            error_popup,
+            login_form,
+        }
     }
 }
 
-pub struct ErrorModalStyle {
+pub struct ErrorPopup {
     pub message_container: container::Style,
     pub container: container::Style,
-    pub close_btn: button::Style
+    pub close_btn: button::Style,
 }
 
 pub struct ChatTheme {
@@ -110,6 +128,13 @@ pub struct ChatTheme {
     pub input: text_input::Style,
     pub scrollable_container: container::Style,
     pub message: container::Style,
+}
+
+pub struct LoginForm {
+    pub login_btn: button::Style,
+    pub input: text_input::Style,
+}
+
+pub struct App {
     pub background: container::Style,
-    pub error_modal: ErrorModalStyle
 }

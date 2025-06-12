@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use chrono::NaiveDateTime;
 use thiserror::Error;
 
 use futures::{SinkExt, Stream, StreamExt as FuturesStreamExt, stream};
@@ -8,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use tokio_tungstenite::tungstenite::{self, protocol::WebSocketConfig};
 use tungstenite::client::IntoClientRequest;
 use url::Url;
+use uuid::Uuid;
+
+use crate::http;
 
 type WsWriteStream = stream::SplitSink<
     tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>,
@@ -22,12 +26,28 @@ pub type ConnectionError = String;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum Request {
-    MessageToUser { user_id: i32, content: String },
+    Message(MessageRequest)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Deserialize, Clone, Debug)]
+pub struct MessageResponse {
+    pub uuid: Uuid,
+    pub user_id: i32,
+    pub content: String,
+    pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MessageRequest {
+    pub uuid: Uuid,
+    pub user_id: i32,
+    pub content: String,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(tag = "type")]
 pub enum Response {
-    Message(String),
+    Message(MessageResponse),
 }
 
 #[derive(Error, Debug, Clone)]
@@ -69,23 +89,18 @@ pub struct Channel {
 
 impl Channel {
     pub async fn send(&mut self, request: Request) -> Result<(), RequestSendError> {
-        match request {
-            Request::MessageToUser { user_id, content } => {
-                let message = Request::MessageToUser { user_id, content };
-                let serialized_message = serde_json::to_string(&message)
-                    .map_err(|err| RequestSendError::Serialization(err.to_string()))?;
+        let serialized_message = serde_json::to_string(&request)
+            .map_err(|err| RequestSendError::Serialization(err.to_string()))?;
 
-                let tungstenine_message = tungstenite::Message::Text(serialized_message.into());
+        let tungstenine_message = tungstenite::Message::Text(serialized_message.into());
 
-                &mut self
-                    .write_stream
-                    .send(tungstenine_message)
-                    .await
-                    .map_err(|err| RequestSendError::Send(err.to_string()))?;
+        &mut self
+            .write_stream
+            .send(tungstenine_message)
+            .await
+            .map_err(|err| RequestSendError::Send(err.to_string()))?;
 
-                Ok(())
-            }
-        }
+        Ok(())
     }
 
     pub async fn next(&mut self) -> Result<Response, ResponseReceiveError> {
@@ -161,20 +176,15 @@ impl Instance {
 fn match_ws_event(
     receive_event_value: &mut Option<Result<tungstenite::Message, tungstenite::Error>>,
 ) -> Result<Response, ResponseReceiveError> {
-    #[derive(Debug, Deserialize)]
-    enum WebsocketRequestEvent {
-        UserMessage { content: String },
-    }
-
     match receive_event_value {
         Some(Ok(receive_event)) => {
             let json = receive_event.to_string();
-            let ws_message: Result<WebsocketRequestEvent, serde_json::Error> =
+            let ws_message: Result<Response, serde_json::Error> =
                 serde_json::from_str(json.as_str());
 
             match ws_message {
-                Ok(WebsocketRequestEvent::UserMessage { content }) => {
-                    Ok(Response::Message(content))
+                Ok(response) => {
+                    Ok(response)
                 }
                 Err(error) => {
                     let error_msg = error.to_string();

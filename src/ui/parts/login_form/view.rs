@@ -3,8 +3,6 @@ use iced::{
     widget::{button, column, container, text_input, vertical_space},
 };
 
-use crate::ui;
-
 use super::{Event, Widget};
 
 impl Widget {

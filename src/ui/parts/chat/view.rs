@@ -6,39 +6,41 @@ use iced::{
     },
 };
 
-use crate::ui;
+use crate::auth;
 
-use super::{Event, UserMessage, Widget};
+use super::{Event, User, UserMessage, Widget};
 
 impl Widget {
-    pub fn view(&self) -> Element<Event> {
-        let scrollable_container = self.get_messages_widget();
+    pub fn view(&self, logged_user_data: auth::UserData) -> Element<Event> {
+        let user_container = self.get_users_widget();
+        let message_container = self.get_messages_widget(logged_user_data.user_id);
         let input_row = match self.state.connection_state {
             super::ConnectionState::Connected => self.get_input_row_widget(),
             super::ConnectionState::Disconnected => self.get_connect_btn_widget(),
         };
 
-        container(
+        container(row![
+            user_container,
             column![
-                scrollable_container.width(Length::Fixed(600.0)),
+                message_container.width(Length::Fixed(600.0)),
                 input_row.width(Length::Fixed(600.0)),
             ]
             .padding(20)
             .spacing(20),
-        )
+        ])
         .height(Length::Fill)
         .width(Length::FillPortion(10))
         .align_x(alignment::Horizontal::Center)
         .into()
     }
 
-    pub fn get_messages_widget(&self) -> Container<'_, Event> {
+    pub fn get_messages_widget(&self, current_user_id: i32) -> Container<'_, Event> {
         let messages: Element<_> = self
             .state
             .messages
             .iter()
             .fold(column![], |col, msg| {
-                let row = self.render_message(msg);
+                let row = self.render_message(msg, current_user_id);
                 col.push(row)
             })
             .into();
@@ -58,24 +60,25 @@ impl Widget {
         return scrollable_container;
     }
 
-    fn render_message(&self, msg: &UserMessage) -> Column<'_, Event> {
+    fn render_message(&self, msg: &UserMessage, current_user_id: i32) -> Column<'_, Event> {
         struct RenderData {
             content: String,
             left_portion: u16,
             right_portion: u16,
         }
 
-        let message_render_data = match msg {
-            UserMessage::Received(content) => RenderData {
-                content: content.clone(),
-                left_portion: 7,
-                right_portion: 3,
-            },
-            UserMessage::Sent(content) => RenderData {
-                content: content.clone(),
+        let message_render_data = if msg.user_id == current_user_id {
+            RenderData {
+                content: msg.content.clone(),
                 left_portion: 3,
                 right_portion: 7,
-            },
+            }
+        } else {
+            RenderData {
+                content: msg.content.clone(),
+                left_portion: 7,
+                right_portion: 3,
+            }
         };
 
         let text = text(message_render_data.content).size(16.0);
@@ -93,6 +96,39 @@ impl Widget {
             bottom: 30.0,
             left: 30.0,
         })
+    }
+
+    fn get_users_widget(&self) -> Container<'_, Event> {
+        let messages: Element<_> = self
+            .state
+            .users
+            .iter()
+            .fold(column![], |col, user| {
+                let row = self.render_user_widget(user);
+                col.push(row)
+            })
+            .into();
+
+        let scrollable_messages = scrollable(messages)
+            .id(self.state.messages_scrollable.clone())
+            .height(Length::Fill);
+
+        container(
+            scrollable_messages
+                .height(Length::Shrink)
+                .width(Length::Fill),
+        )
+        .align_y(alignment::Vertical::Top)
+        .style(|_: &Theme| self.theme.scrollable_container)
+    }
+
+    fn render_user_widget(&self, user: &User) -> Column<'_, Event> {
+        let set_user_button = button(text(user.username.clone()))
+            .style(|_, _| self.theme.chat_btn)
+            .on_press(Event::SelectUser(user.id))
+            .padding(10);
+
+        column![set_user_button]
     }
 
     pub fn get_input_row_widget(&self) -> Container<'_, Event> {

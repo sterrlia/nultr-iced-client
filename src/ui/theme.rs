@@ -60,6 +60,7 @@ impl Default for Collection {
 
         let chat = ChatTheme {
             send_btn: btn,
+            chat_btn: btn,
             connect_btn: button::Style {
                 background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
                 text_color: Color::from_rgb(1.0, 1.0, 1.0),
@@ -125,6 +126,7 @@ pub struct ErrorPopup {
 pub struct ChatTheme {
     pub send_btn: button::Style,
     pub connect_btn: button::Style,
+    pub chat_btn: button::Style,
     pub input: text_input::Style,
     pub scrollable_container: container::Style,
     pub message: container::Style,

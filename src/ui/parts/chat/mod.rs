@@ -1,8 +1,9 @@
 mod view;
 
-use std::sync::Arc;
-
+use chrono::{NaiveDateTime, Utc};
 use iced::{Element, Task, widget::scrollable};
+use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::{
     auth, config,
@@ -20,7 +21,7 @@ use super::error_popup;
 pub enum Event {
     InputChanged(String),
     SendMessage,
-    Message(String),
+    Message(UserMessage),
     MessageSent,
     Reconnect,
     Connected,
@@ -29,8 +30,10 @@ pub enum Event {
     LoadUsers,
     AddUsers(Vec<UserResponse>),
     AddMessages(Vec<MessageResponse>),
+    SelectUser(i32)
 }
 
+#[derive(Clone, Debug)]
 struct User {
     pub id: i32,
     pub username: String,
@@ -45,6 +48,7 @@ pub struct State {
     input_value: String,
     users: Vec<User>,
     messages: Vec<UserMessage>,
+    users_scrollable: scrollable::Id,
     messages_scrollable: scrollable::Id,
     selected_user_id: Option<i32>,
     connection_state: ConnectionState,
@@ -58,16 +62,20 @@ impl Default for State {
             users: Vec::new(),
             messages: Vec::new(),
             selected_user_id: None,
-            messages_scrollable: scrollable::Id::new("1"),
+            users_scrollable: scrollable::Id::new("users"),
+            messages_scrollable: scrollable::Id::new("messages"),
             connection_state: ConnectionState::Disconnected,
             next_messages_page: 1,
         }
     }
 }
 
-enum UserMessage {
-    Received(String),
-    Sent(String),
+#[derive(Debug, Clone)]
+pub struct UserMessage {
+    pub user_id: i32,
+    pub uuid: Uuid,
+    pub content: String,
+    pub created_at: NaiveDateTime,
 }
 
 pub struct Widget {
@@ -87,21 +95,31 @@ impl Widget {
             Event::SendMessage => {
                 let input_value = self.state.input_value.trim().to_string();
 
-                if !input_value.is_empty() {
+                if input_value.is_empty() {
                     return iced::Task::none();
                 };
 
                 if let Some(user_id) = self.state.selected_user_id {
-                    self.state
-                        .messages
-                        .push(UserMessage::Sent(input_value.clone()));
+                    let uuid = Uuid::new_v4();
+                    let content = input_value.clone();
+                    let message = UserMessage {
+                        uuid,
+                        user_id: logged_user_data.user_id,
+                        content: content.clone(),
+                        created_at: Utc::now().naive_utc(),
+                    };
+
+                    self.state.messages.push(message);
 
                     self.state.input_value.clear();
 
-                    let controller_event = ws::controller::SendEvent::Message {
+                    let request = ws::client::MessageRequest {
+                        uuid,
                         user_id,
-                        content: input_value,
+                        content,
                     };
+
+                    let controller_event = ws::controller::SendEvent::Message(request);
 
                     event_task(ui::Event::ToWs(controller_event))
                 } else {
@@ -110,8 +128,8 @@ impl Widget {
                     )))
                 }
             }
-            Event::Message(content) => {
-                self.state.messages.push(UserMessage::Received(content));
+            Event::Message(message) => {
+                self.state.messages.push(message);
 
                 iced::Task::none()
             }
@@ -125,13 +143,18 @@ impl Widget {
                     token: logged_user_data.token,
                 };
 
-                event_task(ui::Event::ToWs(disconnect_event))
-                    .chain(event_task(ui::Event::ToWs(connect_event)))
+                let disconnect = ui::Event::ToWs(disconnect_event);
+                let connect =  ui::Event::ToWs(connect_event);
+
+                event_task(disconnect)
+                    .chain(event_task(connect))
             }
             Event::Connected => {
                 self.state.connection_state = ConnectionState::Connected;
 
-                iced::Task::none()
+                let get_users = ui::Event::Chat(Event::LoadUsers);
+
+                event_task(get_users)
             }
             Event::Disconnected => {
                 self.state.connection_state = ConnectionState::Disconnected;
@@ -172,27 +195,35 @@ impl Widget {
                     .collect();
 
                 self.state.users = users;
-                self.state.next_messages_page += 1;
 
                 Task::none()
             }
             Event::AddMessages(messages_response) => {
-                let current_user_id = logged_user_data.user_id;
                 let messages: Vec<UserMessage> = messages_response
                     .iter()
-                    .map(|response| {
-                        if response.user_id == current_user_id {
-                            UserMessage::Sent(response.content.clone())
-                        } else {
-                            UserMessage::Received(response.content.clone())
-                        }
+                    .cloned()
+                    .map(|response| UserMessage {
+                        user_id: response.user_id,
+                        uuid: response.id,
+                        content: response.content,
+                        created_at: response.created_at,
                     })
                     .collect();
 
                 self.state.messages.extend(messages);
+                self.state
+                    .messages
+                    .sort_by_key(|message| message.created_at);
+                self.state.messages.dedup_by_key(|message| message.uuid);
+
                 self.state.next_messages_page += 1;
 
                 Task::none()
+            }
+            Event::SelectUser(user_id) => {
+                self.state.selected_user_id = Some(user_id);
+
+                event_task(ui::Event::Chat(Event::LoadMessages))
             }
         }
     }

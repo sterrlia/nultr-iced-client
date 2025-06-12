@@ -45,7 +45,6 @@ where
         base_url.join(Self::ENDPOINT).unwrap()
     }
 
-
     async fn perform(
         &self,
         client: reqwest::Client,

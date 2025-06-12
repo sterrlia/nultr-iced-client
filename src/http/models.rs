@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use super::api::HttpRequest;
 
@@ -35,7 +36,7 @@ pub struct GetMessagesRequest {
 
 #[derive(Deserialize, Clone, Debug)]
 pub struct MessageResponse {
-    pub id: i32,
+    pub id: Uuid,
     pub user_id: i32,
     pub content: String,
     pub created_at: NaiveDateTime,

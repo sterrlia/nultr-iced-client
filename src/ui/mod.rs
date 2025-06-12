@@ -15,8 +15,8 @@ use crate::{auth, config, http, ws};
 
 #[derive(Debug, Clone)]
 enum AuthState {
-    Authorized(auth::UserData),
-    Unauthorized,
+    Authenticated(auth::UserData),
+    Unauthenticated,
 }
 
 #[derive(Debug, Clone)]
@@ -64,7 +64,7 @@ impl Default for Ui {
         };
 
         let state = State {
-            auth_state: AuthState::Unauthorized,
+            auth_state: AuthState::Unauthenticated,
         };
 
         Self {
@@ -81,16 +81,16 @@ impl Default for Ui {
 impl Ui {
     pub fn update(&mut self, event: Event) -> Task<Event> {
         match (self.state.auth_state.clone(), event) {
-            (AuthState::Unauthorized, Event::LoginForm(event)) => self.login.update(event),
-            (AuthState::Authorized(user_data), Event::Chat(event)) => {
+            (AuthState::Unauthenticated, Event::LoginForm(event)) => self.login.update(event),
+            (AuthState::Authenticated(user_data), Event::Chat(event)) => {
                 self.chat.update(user_data, event)
             }
             (_, Event::ErrorPopup(event)) => self.error_popup.update(event),
-            (AuthState::Authorized(user_data), Event::FromWs(result)) => match result {
+            (AuthState::Authenticated(user_data), Event::FromWs(result)) => match result {
                 Ok(event) => self.handle_controller_event(user_data, event),
                 Err(error) => self.handle_controller_error(error),
             },
-            (AuthState::Authorized(_), Event::ToWs(event)) => {
+            (AuthState::Authenticated(_), Event::ToWs(event)) => {
                 if let Some(sender) = self.ws_sender.clone() {
                     if let Err(error) = sender.send(event) {
                         tracing::error!("Send error {error}");
@@ -108,17 +108,17 @@ impl Ui {
                 }
             }
             (_, Event::Authenticated(user_data)) => {
-                self.state.auth_state = AuthState::Authorized(user_data);
+                self.state.auth_state = AuthState::Authenticated(user_data);
 
                 let connect_event = chat::Event::Reconnect;
                 event_task(Event::Chat(connect_event))
             }
 
-            (AuthState::Authorized(_), Event::LoginForm(_)) => event_task(Event::ErrorPopup(
+            (AuthState::Authenticated(_), Event::LoginForm(_)) => event_task(Event::ErrorPopup(
                 error_popup::Event::AddMessage("Already authorized".to_string()),
             )),
 
-            (AuthState::Unauthorized, _) => event_task(Event::ErrorPopup(
+            (AuthState::Unauthenticated, _) => event_task(Event::ErrorPopup(
                 error_popup::Event::AddMessage("Unauthorized".to_string()),
             )),
         }
@@ -150,9 +150,17 @@ impl Ui {
 
                 iced::Task::none()
             }
-            ws::controller::Event::Message(message_content) => self
-                .chat
-                .update(user_data, chat::Event::Message(message_content)),
+            ws::controller::Event::Message(message_response) => {
+                let user_message = chat::UserMessage {
+                    uuid: message_response.uuid,
+                    user_id: message_response.user_id,
+                    content: message_response.content,
+                    created_at: message_response.created_at,
+                };
+
+                self.chat
+                    .update(user_data, chat::Event::Message(user_message))
+            }
 
             ws::controller::Event::Disconnected => {
                 self.chat.update(user_data, chat::Event::Disconnected)

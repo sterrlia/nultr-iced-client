@@ -6,9 +6,9 @@ use tokio::{
 };
 use url::Url;
 
-use crate::auth;
+use crate::{auth, http};
 
-use super::client;
+use super::client::{self, MessageRequest, MessageResponse};
 
 type ReceivedReceiveEventResult = Result<client::Response, client::ResponseReceiveError>;
 pub type StreamItem = Result<Event, Error>;
@@ -22,7 +22,7 @@ enum ReceivedEventVariant {
 pub enum Event {
     Ready(mpsc::UnboundedSender<SendEvent>),
     Connected,
-    Message(String),
+    Message(MessageResponse),
     MessageSent,
     Disconnected,
 }
@@ -39,12 +39,9 @@ pub enum Error {
 
 #[derive(Debug, Clone)]
 pub enum SendEvent {
-    Connect {
-        url: Url,
-        token: auth::Token
-    },
+    Connect { url: Url, token: auth::Token },
     Disconnect,
-    Message { user_id: i32, content: String },
+    Message(MessageRequest),
 }
 
 pub fn subscription() -> impl Stream<Item = StreamItem> {
@@ -117,8 +114,8 @@ impl EventHandler {
 
                 Ok(Event::Disconnected)
             }
-            SendEvent::Message { user_id, content } => {
-                let request = client::Request::MessageToUser { user_id, content };
+            SendEvent::Message(request) => {
+                let request = client::Request::Message(request);
                 let result = self.ws_client.send(request).await;
 
                 match result {

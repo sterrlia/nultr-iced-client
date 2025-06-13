@@ -2,7 +2,7 @@ mod view;
 
 use chrono::{NaiveDateTime, Utc};
 use iced::{Element, Task, widget::scrollable};
-use std::sync::Arc;
+use std::{cmp, sync::Arc};
 use uuid::Uuid;
 
 use crate::{
@@ -31,7 +31,7 @@ pub enum Event {
     AddUsers(Vec<UserResponse>),
     AddMessages(Vec<MessageResponse>),
     SelectUser(i32),
-    LoadMessagesError(http::api::Error<http::models::ErrorResponse>)
+    LoadMessagesError(http::api::Error<http::models::ErrorResponse>),
 }
 
 #[derive(Clone, Debug)]
@@ -53,7 +53,7 @@ pub struct State {
     messages_scrollable: scrollable::Id,
     selected_user_id: Option<i32>,
     connection_state: ConnectionState,
-    next_messages_page: i32,
+    messages_page: i32,
 }
 
 impl Default for State {
@@ -66,7 +66,7 @@ impl Default for State {
             users_scrollable: scrollable::Id::new("users"),
             messages_scrollable: scrollable::Id::new("messages"),
             connection_state: ConnectionState::Disconnected,
-            next_messages_page: 1,
+            messages_page: -1,
         }
     }
 }
@@ -115,7 +115,7 @@ impl Widget {
                     self.state.input_value.clear();
 
                     let request = ws::client::MessageRequest {
-                        uuid,
+                        id: uuid,
                         user_id,
                         content,
                     };
@@ -182,8 +182,9 @@ impl Widget {
                     let session = http::models::Session {
                         token: logged_user_data.token,
                     };
+                    self.state.messages_page += 1;
 
-                    self.load_messages(user_id, session)
+                    self.load_messages(user_id, session, self.state.messages_page as u64)
                 } else {
                     let show_error_event = ui::Event::ErrorPopup(error_popup::Event::AddMessage(
                         "Cannot load messages: no user selected".to_string(),
@@ -222,17 +223,19 @@ impl Widget {
                 self.state.messages.extend(messages);
                 self.state
                     .messages
-                    .sort_by_key(|message| message.created_at);
+                    .sort_by_key(|message| cmp::Reverse(message.created_at));
                 self.state.messages.dedup_by_key(|message| message.uuid);
-
-                self.state.next_messages_page += 1;
 
                 Task::none()
             }
             Event::SelectUser(user_id) => {
                 self.state.selected_user_id = Some(user_id);
 
-                event_task(ui::Event::Chat(Event::LoadMessages))
+                if self.state.messages_page < 0 {
+                    event_task(ui::Event::Chat(Event::LoadMessages))
+                } else {
+                    Task::none()
+                }
             }
             Event::LoadMessagesError(error) => {
                 self.state.selected_user_id = None;
@@ -244,9 +247,14 @@ impl Widget {
         }
     }
 
-    fn load_messages(&mut self, user_id: i32, session: http::models::Session) -> Task<ui::Event> {
+    fn load_messages(
+        &mut self,
+        user_id: i32,
+        session: http::models::Session,
+        page: u64,
+    ) -> Task<ui::Event> {
         let pagination = Pagination {
-            page: self.state.next_messages_page as u64,
+            page,
             page_size: 10,
         };
         let request = GetMessagesRequest {
@@ -260,7 +268,7 @@ impl Widget {
             async move { http_client.clone().request(request, Some(session)).await },
             |value| match value {
                 Ok(response) => ui::Event::Chat(Event::AddMessages(response)),
-                Err(err) => ui::Event::Chat(Event::LoadMessagesError(err))
+                Err(err) => ui::Event::Chat(Event::LoadMessagesError(err)),
             },
         )
     }

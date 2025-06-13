@@ -39,7 +39,7 @@ pub struct MessageResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MessageRequest {
-    pub uuid: Uuid,
+    pub id: Uuid,
     pub user_id: i32,
     pub content: String,
 }
@@ -48,6 +48,7 @@ pub struct MessageRequest {
 #[serde(tag = "type")]
 pub enum Response {
     Message(MessageResponse),
+    MessageSent
 }
 
 #[derive(Error, Debug, Clone)]
@@ -164,6 +165,7 @@ impl Instance {
     }
 
     pub async fn disconnect(&mut self) {
+        tracing::error!("Disconnected");
         self.state = State::Disconnected;
 
         if let Some(channel) = &mut self.channel {
@@ -171,7 +173,7 @@ impl Instance {
                 .write_stream
                 .close()
                 .await
-                .inspect_err(|err| warn!("Disconnect error {}", err.to_string()));
+                .inspect_err(|err| tracing::warn!("Disconnect error {}", err.to_string()));
 
             self.channel = None;
         }

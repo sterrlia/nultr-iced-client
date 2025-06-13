@@ -129,6 +129,7 @@ impl EventHandler {
         match event_result {
             Ok(response_event) => match response_event {
                 client::Response::Message(content) => Ok(Event::Message(content)),
+                client::Response::MessageSent => Ok(Event::MessageSent),
             },
             Err(response_event_error) => Err(response_event_error.into()),
         }

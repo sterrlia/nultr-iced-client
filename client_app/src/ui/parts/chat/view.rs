@@ -1,8 +1,8 @@
 use iced::{
     Element, Length, Padding, Theme, alignment,
     widget::{
-        Column, Container, button, column, container, horizontal_space, row, scrollable, stack,
-        text, text_input, vertical_space,
+        Button, Column, Container, Svg, button, column, container, horizontal_space, row,
+        scrollable, stack, text, text_input, vertical_space,
     },
 };
 
@@ -17,10 +17,10 @@ impl Widget {
 
         container(row![
             user_container
-                .width(Length::FillPortion(3))
+                .width(Length::FillPortion(2))
                 .height(Length::Fill),
             chat_widget
-                .width(Length::FillPortion(7))
+                .width(Length::FillPortion(8))
                 .height(Length::Fill)
         ])
         .height(Length::Fill)
@@ -39,11 +39,13 @@ impl Widget {
         container(stack![
             message_container.width(Length::Fill),
             container(input_row.width(Length::Fixed(600.0)))
+                .width(Length::Fill)
                 .height(Length::Fill)
                 .align_y(alignment::Vertical::Bottom)
                 .align_x(alignment::Horizontal::Center)
                 .padding(20)
         ])
+        .align_x(alignment::Horizontal::Center)
     }
 
     pub fn get_messages_widget(&self, current_user_id: i32) -> Container<'_, Event> {
@@ -55,11 +57,11 @@ impl Widget {
                 let row = self.render_message(msg, current_user_id);
                 col.push(row)
             })
+            .push(vertical_space().height(90))
             .into();
 
         let scrollable_messages = scrollable(messages)
-            .id(self.state.messages_scrollable.clone())
-            .height(Length::Fill);
+            .id(self.state.messages_scrollable.clone());
 
         let scrollable_container = container(column![
             vertical_space().height(Length::Fill),
@@ -67,7 +69,7 @@ impl Widget {
                 .height(Length::Shrink)
                 .width(Length::Fill)
         ])
-        .style(|_: &Theme| self.theme.scrollable_container);
+        .style(|_: &Theme| self.theme.message_container);
 
         return scrollable_container;
     }
@@ -97,8 +99,8 @@ impl Widget {
         let bubble = container(text).style(|_| self.theme.message).padding(12);
 
         column![row![
-            container(bubble).width(Length::FillPortion(message_render_data.left_portion)),
-            horizontal_space().width(Length::FillPortion(message_render_data.right_portion)),
+            container(bubble).width(Length::Fill),
+        //    horizontal_space().width(Length::FillPortion(message_render_data.right_portion)),
         ],]
         .width(Length::FillPortion(10))
         .align_x(alignment::Horizontal::Left)
@@ -116,7 +118,7 @@ impl Widget {
             .users
             .iter()
             .fold(column![], |col, user| {
-                let row = self.render_user_widget(user);
+                let row = self.get_user_widget(user);
                 col.push(row)
             })
             .into();
@@ -133,23 +135,33 @@ impl Widget {
         )
         .padding(12)
         .align_y(alignment::Vertical::Top)
-        .style(|_: &Theme| self.theme.scrollable_container)
+        .style(|_: &Theme| self.theme.users_container)
     }
 
-    fn render_user_widget(&self, user: &User) -> Column<'_, Event> {
-        let profile_image_btn = button("").padding(40).style(|_, _| self.theme.chat_btn);
-        let user_info_widget =
-            container(row![profile_image_btn, text(user.username.clone())].padding(12))
-                .align_y(alignment::Vertical::Center)
-                .align_x(alignment::Horizontal::Left);
+    fn get_user_widget(&self, user: &User) -> Button<'_, Event> {
+        let profile_image_btn = button(Svg::new(self.theme.profile_image_svg.clone()))
+            .height(40)
+            .width(40)
+            .style(|_, _| self.theme.profile_image_btn);
 
-        let set_user_button = button(user_info_widget)
-            .style(|_, _| self.theme.chat_btn)
-            .width(Length::Fill)
+        let user_info_widget = container(
+            row![profile_image_btn, text(user.username.clone())]
+                .spacing(10)
+                .align_y(alignment::Vertical::Center),
+        )
+        .padding(5)
+        .align_x(alignment::Horizontal::Left);
+
+        let btn_style = if self.state.selected_user_id == Some(user.id) {
+            self.theme.active_chat_btn
+        } else {
+            self.theme.chat_btn
+        };
+
+        button(user_info_widget)
             .on_press(Event::SelectUser(user.id))
-            .padding(12);
-
-        column![set_user_button]
+            .width(Length::Fill)
+            .style(move |_, _| btn_style)
     }
 
     pub fn get_input_row_widget(&self) -> Container<'_, Event> {
@@ -157,16 +169,23 @@ impl Widget {
             .on_input(Event::InputChanged)
             .padding(10)
             .size(16)
-            .width(Length::Fill)
             .on_submit(Event::SendMessage)
             .style(|_, _| self.theme.input);
 
-        let send_button = button("Send")
+        let send_button = button(Svg::new(self.theme.send_btn_svg.clone()))
             .style(|_, _| self.theme.send_btn)
-            .on_press(Event::SendMessage)
-            .padding(10);
+            .on_press(Event::SendMessage);
 
-        let input_row = container(row![message_input, send_button].spacing(10));
+        let input_row = container(
+            row![
+                container(message_input).width(Length::Fill),
+                send_button.width(35).height(35)
+            ]
+            .align_y(alignment::Vertical::Center),
+        )
+        .padding(5)
+        .align_x(alignment::Horizontal::Center)
+        .style(|_| self.theme.input_container);
 
         return input_row;
     }
@@ -174,6 +193,7 @@ impl Widget {
     pub fn get_connect_btn_widget(&self) -> Container<'_, Event> {
         container(
             button(text("Connect"))
+                .style(|_, _| self.theme.connect_btn)
                 .on_press(Event::Reconnect)
                 .width(Length::Shrink),
         )

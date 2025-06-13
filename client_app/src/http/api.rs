@@ -81,6 +81,7 @@ where
 
         if status.is_success() {
             let body_raw = response.text().await.map_err(|err| Error::<E>::from(err))?;
+            println!("body raw {}", body_raw);
 
             let body: O = serde_json::from_str(body_raw.as_str())
                 .map_err(|err| Error::<E>::from((err, body_raw)))?;

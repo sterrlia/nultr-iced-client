@@ -8,9 +8,9 @@ use crate::{
     auth,
     http::{
         self,
-        models::{ApiError, LoginRequest, LoginResponse},
+        models::{LoginRequest, LoginResponse, ErrorResponse},
     },
-    ui::{self, app, theme, util::event_task},
+    ui::{self, theme, util::event_task},
 };
 
 use super::error_popup;

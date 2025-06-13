@@ -1,8 +1,8 @@
 use iced::{
     Element, Length, Padding, Theme, alignment,
     widget::{
-        Column, Container, button, column, container, horizontal_space, row, scrollable, text,
-        text_input, vertical_space,
+        Column, Container, button, column, container, horizontal_space, row, scrollable, stack,
+        text, text_input, vertical_space,
     },
 };
 
@@ -12,26 +12,38 @@ use super::{Event, User, UserMessage, Widget};
 
 impl Widget {
     pub fn view(&self, logged_user_data: auth::UserData) -> Element<Event> {
+        let chat_widget = self.get_chat_widget(logged_user_data);
         let user_container = self.get_users_widget();
+
+        container(row![
+            user_container
+                .width(Length::FillPortion(3))
+                .height(Length::Fill),
+            chat_widget
+                .width(Length::FillPortion(7))
+                .height(Length::Fill)
+        ])
+        .height(Length::Fill)
+        .width(Length::FillPortion(10))
+        .align_x(alignment::Horizontal::Center)
+        .into()
+    }
+
+    pub fn get_chat_widget(&self, logged_user_data: auth::UserData) -> Container<'_, Event> {
         let message_container = self.get_messages_widget(logged_user_data.user_id);
         let input_row = match self.state.connection_state {
             super::ConnectionState::Connected => self.get_input_row_widget(),
             super::ConnectionState::Disconnected => self.get_connect_btn_widget(),
         };
 
-        container(row![
-            user_container,
-            column![
-                message_container.width(Length::Fixed(600.0)),
-                input_row.width(Length::Fixed(600.0)),
-            ]
-            .padding(20)
-            .spacing(20),
+        container(stack![
+            message_container.width(Length::Fill),
+            container(input_row.width(Length::Fixed(600.0)))
+                .height(Length::Fill)
+                .align_y(alignment::Vertical::Bottom)
+                .align_x(alignment::Horizontal::Center)
+                .padding(20)
         ])
-        .height(Length::Fill)
-        .width(Length::FillPortion(10))
-        .align_x(alignment::Horizontal::Center)
-        .into()
     }
 
     pub fn get_messages_widget(&self, current_user_id: i32) -> Container<'_, Event> {
@@ -110,7 +122,8 @@ impl Widget {
             .into();
 
         let scrollable_messages = scrollable(messages)
-            .id(self.state.messages_scrollable.clone())
+            .id(self.state.users_scrollable.clone())
+            .width(Length::Fill)
             .height(Length::Fill);
 
         container(
@@ -118,15 +131,23 @@ impl Widget {
                 .height(Length::Shrink)
                 .width(Length::Fill),
         )
+        .padding(12)
         .align_y(alignment::Vertical::Top)
         .style(|_: &Theme| self.theme.scrollable_container)
     }
 
     fn render_user_widget(&self, user: &User) -> Column<'_, Event> {
-        let set_user_button = button(text(user.username.clone()))
+        let profile_image_btn = button("").padding(40).style(|_, _| self.theme.chat_btn);
+        let user_info_widget =
+            container(row![profile_image_btn, text(user.username.clone())].padding(12))
+                .align_y(alignment::Vertical::Center)
+                .align_x(alignment::Horizontal::Left);
+
+        let set_user_button = button(user_info_widget)
             .style(|_, _| self.theme.chat_btn)
+            .width(Length::Fill)
             .on_press(Event::SelectUser(user.id))
-            .padding(10);
+            .padding(12);
 
         column![set_user_button]
     }

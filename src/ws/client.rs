@@ -6,7 +6,7 @@ use thiserror::Error;
 use futures::{SinkExt, Stream, StreamExt as FuturesStreamExt, stream};
 use log::{info, trace, warn};
 use serde::{Deserialize, Serialize};
-use tokio_tungstenite::tungstenite::{self, protocol::WebSocketConfig};
+use tokio_tungstenite::tungstenite::{self, handshake::client::generate_key, protocol::WebSocketConfig};
 use tungstenite::client::IntoClientRequest;
 use url::Url;
 use uuid::Uuid;
@@ -114,7 +114,12 @@ impl Instance {
     pub async fn connect(&mut self, url: Url, token: String) -> Result<(), ConnectionError> {
         let request = tungstenite::http::Request::builder()
             .method("GET")
-            .header("Bearer", token)
+            .header("Authorization", format!("Bearer {token}"))
+            .header("Upgrade", "websocket")
+            .header("Connection", "upgrade")
+            .header("Host", url.host_str().unwrap())
+            .header("Sec-WebSocket-Key", generate_key()) 
+            .header("Sec-Websocket-Version", "13")
             .uri(url.to_string())
             .body(())
             .map_err(|err| err.to_string())?;

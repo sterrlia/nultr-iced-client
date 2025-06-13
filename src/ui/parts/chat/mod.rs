@@ -11,7 +11,7 @@ use crate::{
         self,
         models::{GetMessagesRequest, GetUsersRequest, MessageResponse, Pagination, UserResponse},
     },
-    ui::{self, app, theme, util::event_task},
+    ui::{self, theme, util::event_task},
     ws,
 };
 
@@ -30,7 +30,8 @@ pub enum Event {
     LoadUsers,
     AddUsers(Vec<UserResponse>),
     AddMessages(Vec<MessageResponse>),
-    SelectUser(i32)
+    SelectUser(i32),
+    LoadMessagesError(http::api::Error<http::models::ErrorResponse>)
 }
 
 #[derive(Clone, Debug)]
@@ -144,10 +145,9 @@ impl Widget {
                 };
 
                 let disconnect = ui::Event::ToWs(disconnect_event);
-                let connect =  ui::Event::ToWs(connect_event);
+                let connect = ui::Event::ToWs(connect_event);
 
-                event_task(disconnect)
-                    .chain(event_task(connect))
+                event_task(disconnect).chain(event_task(connect))
             }
             Event::Connected => {
                 self.state.connection_state = ConnectionState::Connected;
@@ -165,9 +165,12 @@ impl Widget {
                 let request = GetUsersRequest {};
 
                 let http_client = self.http_client.clone();
+                let session = http::models::Session {
+                    token: logged_user_data.token,
+                };
 
                 Task::perform(
-                    async move { http_client.clone().request(request, None).await },
+                    async move { http_client.clone().request(request, Some(session)).await },
                     |value| match value {
                         Ok(users) => ui::Event::Chat(Event::AddUsers(users)),
                         Err(err) => ui::Event::ErrorPopup(error_popup::Event::AddApiError(err)),
@@ -176,11 +179,17 @@ impl Widget {
             }
             Event::LoadMessages => {
                 if let Some(user_id) = self.state.selected_user_id {
-                    self.load_messages(user_id)
+                    let session = http::models::Session {
+                        token: logged_user_data.token,
+                    };
+
+                    self.load_messages(user_id, session)
                 } else {
-                    event_task(ui::Event::ErrorPopup(error_popup::Event::AddMessage(
+                    let show_error_event = ui::Event::ErrorPopup(error_popup::Event::AddMessage(
                         "Cannot load messages: no user selected".to_string(),
-                    )))
+                    ));
+
+                    event_task(show_error_event)
                 }
             }
             Event::AddUsers(users_response) => {
@@ -225,12 +234,19 @@ impl Widget {
 
                 event_task(ui::Event::Chat(Event::LoadMessages))
             }
+            Event::LoadMessagesError(error) => {
+                self.state.selected_user_id = None;
+
+                let show_error = ui::Event::ErrorPopup(error_popup::Event::AddApiError(error));
+
+                event_task(show_error)
+            }
         }
     }
 
-    fn load_messages(&mut self, user_id: i32) -> Task<ui::Event> {
+    fn load_messages(&mut self, user_id: i32, session: http::models::Session) -> Task<ui::Event> {
         let pagination = Pagination {
-            page: self.state.next_messages_page,
+            page: self.state.next_messages_page as u64,
             page_size: 10,
         };
         let request = GetMessagesRequest {
@@ -241,10 +257,10 @@ impl Widget {
         let http_client = self.http_client.clone();
 
         Task::perform(
-            async move { http_client.clone().request(request, None).await },
+            async move { http_client.clone().request(request, Some(session)).await },
             |value| match value {
                 Ok(response) => ui::Event::Chat(Event::AddMessages(response)),
-                Err(err) => ui::Event::ErrorPopup(error_popup::Event::AddApiError(err)),
+                Err(err) => ui::Event::Chat(Event::LoadMessagesError(err))
             },
         )
     }

@@ -2,14 +2,17 @@ mod view;
 
 use std::sync::Arc;
 
-use iced::{widget::scrollable, Element, Task};
+use iced::{Element, Task, widget::scrollable};
 
-use crate::{http::models::ApiError, ui::{self, app, theme, util::event_task}};
+use crate::{
+    http,
+    ui::{self, theme, util::event_task},
+};
 
 #[derive(Debug, Clone)]
 pub enum Event {
     AddMessage(String),
-    AddApiError(ApiError),
+    AddApiError(http::api::Error<http::models::ErrorResponse>),
     DismissMessage(usize),
 }
 
@@ -22,7 +25,7 @@ pub struct State {
 
 impl Default for State {
     fn default() -> Self {
-        Self { 
+        Self {
             error_messages: Vec::new(),
             error_messages_scrollable: scrollable::Id::new("2"),
         }
@@ -50,19 +53,29 @@ impl Widget {
 
             Event::AddApiError(error) => {
                 let message = match error {
-                    ApiError::Deserialization => "Deserialization error",
-                    ApiError::Http(_) => "Request error",
-                    ApiError::Timeout => "Http timeout",
-                    ApiError::Connect => "Connection error",
-                    ApiError::Redirect => "Redirect error",
-                    ApiError::Unknown => "Unknown api error",
-                    ApiError::Decode => "Error while decoding"
+                    http::api::Error::Request(request_error) => match request_error {
+                        http::api::RequestError::Builder => "Request builder error",
+                        http::api::RequestError::Http(_) => "Request error",
+                        http::api::RequestError::Timeout => "Http timeout",
+                        http::api::RequestError::Connect => "Connection error",
+                        http::api::RequestError::Redirect => "Redirect error",
+                        http::api::RequestError::Unknown => "Unknown request error",
+                        http::api::RequestError::Decode => "Error while decoding",
+                        http::api::RequestError::Deserialize => "Deserialization error",
+                    },
+
+                    http::api::Error::Api(error_response) => match error_response {
+                        http::models::ErrorResponse::InternalServerError => "Unknown api error",
+                        http::models::ErrorResponse::UserNotFound => "User not found",
+                        http::models::ErrorResponse::AccessDenied => "Access denied",
+                        http::models::ErrorResponse::InvalidToken => "Invalid jwt token",
+                    },
                 };
 
-                event_task(ui::Event::ErrorPopup(Event::AddMessage(message.to_string())))
+                event_task(ui::Event::ErrorPopup(Event::AddMessage(
+                    message.to_string(),
+                )))
             }
         }
     }
 }
-
-

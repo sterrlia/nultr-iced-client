@@ -1,4 +1,3 @@
-mod app;
 mod parts;
 mod theme;
 mod util;
@@ -86,6 +85,13 @@ impl Ui {
                 self.chat.update(user_data, event)
             }
             (_, Event::ErrorPopup(event)) => self.error_popup.update(event),
+
+            (_, Event::FromWs(Ok(ws::controller::Event::Ready(sender)))) => {
+                self.ws_sender = Some(sender);
+
+                Task::none()
+            }
+
             (AuthState::Authenticated(user_data), Event::FromWs(result)) => match result {
                 Ok(event) => self.handle_controller_event(user_data, event),
                 Err(error) => self.handle_controller_error(error),
@@ -118,9 +124,13 @@ impl Ui {
                 error_popup::Event::AddMessage("Already authorized".to_string()),
             )),
 
-            (AuthState::Unauthenticated, _) => event_task(Event::ErrorPopup(
-                error_popup::Event::AddMessage("Unauthorized".to_string()),
-            )),
+            (AuthState::Unauthenticated, event) => {
+                tracing::error!("{:?}", event);
+
+                event_task(Event::ErrorPopup(error_popup::Event::AddMessage(
+                    "Unauthorized".to_string(),
+                )))
+            }
         }
     }
 

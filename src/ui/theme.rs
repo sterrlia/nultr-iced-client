@@ -53,14 +53,23 @@ impl Default for Collection {
             },
             background: Background::Color(Color::from_rgb(1.0, 1.0, 1.0)),
             icon: Color::from_rgb(1.0, 1.0, 1.0),
-            placeholder: Color::from_rgb(0.2, 0.2, 0.2),
+            placeholder: Color::from_rgb(0.3, 0.2, 0.2),
             value: Color::from_rgb(0.0, 0.0, 0.0),
             selection: Color::from_rgb(0.2, 0.2, 0.2),
         };
 
         let chat = ChatTheme {
             send_btn: btn,
-            chat_btn: btn,
+            chat_btn: button::Style {
+                background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
+                text_color: Color::from_rgb(1.0, 1.0, 1.0),
+                border: Border {
+                    radius: Radius::new(10),
+                    ..Border::default()
+                },
+                shadow: Shadow::default(),
+            },
+            profile_image_btn: btn,
             connect_btn: button::Style {
                 background: Some(Background::Color(Color::from_rgb(0.4, 0.2, 0.1))),
                 text_color: Color::from_rgb(1.0, 1.0, 1.0),
@@ -105,7 +114,7 @@ impl Default for Collection {
                     ..Border::default()
                 },
                 ..container::Style::default()
-            }
+            },
         };
 
         Collection {
@@ -126,6 +135,7 @@ pub struct ErrorPopup {
 pub struct ChatTheme {
     pub send_btn: button::Style,
     pub connect_btn: button::Style,
+    pub profile_image_btn: button::Style,
     pub chat_btn: button::Style,
     pub input: text_input::Style,
     pub scrollable_container: container::Style,

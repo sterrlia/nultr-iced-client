@@ -3,7 +3,7 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::api::HttpRequest;
+use super::api::{HttpRequest, RequestError};
 
 #[derive(Serialize)]
 pub struct LoginRequest {
@@ -17,20 +17,30 @@ pub struct LoginResponse {
     pub token: String,
 }
 
-impl HttpRequest<LoginResponse, ApiError> for LoginRequest {
-    const ENDPOINT: &'static str = "login";
+#[derive(Deserialize, Clone, Debug)]
+#[serde(tag = "type")]
+pub enum ErrorResponse {
+    InternalServerError,
+    UserNotFound,
+    AccessDenied,
+    InvalidToken
+}
+
+impl HttpRequest<LoginResponse, ErrorResponse> for LoginRequest {
+    const ENDPOINT: &'static str = "api/login";
     const METHOD: reqwest::Method = reqwest::Method::POST;
 }
 
 #[derive(Serialize)]
 pub struct Pagination {
-    pub page: i32,
-    pub page_size: i32,
+    pub page: u64,
+    pub page_size: u64,
 }
 
 #[derive(Serialize)]
 pub struct GetMessagesRequest {
     pub user_id: i32,
+    #[serde(flatten)]
     pub pagination: Pagination
 }
 
@@ -43,8 +53,8 @@ pub struct MessageResponse {
 }
 pub type GetMessagesResponse = Vec<MessageResponse>;
 
-impl HttpRequest<GetMessagesResponse, ApiError> for GetMessagesRequest {
-    const ENDPOINT: &'static str = "get-messages";
+impl HttpRequest<GetMessagesResponse, ErrorResponse> for GetMessagesRequest {
+    const ENDPOINT: &'static str = "api/get-messages";
     const METHOD: reqwest::Method = reqwest::Method::GET;
 }
 
@@ -59,50 +69,12 @@ pub struct UserResponse {
 }
 pub type GetUsersResponse = Vec<UserResponse>;
 
-impl HttpRequest<GetUsersResponse, ApiError> for GetUsersRequest {
-    const ENDPOINT: &'static str = "get-users";
+impl HttpRequest<GetUsersResponse, ErrorResponse> for GetUsersRequest {
+    const ENDPOINT: &'static str = "api/get-users";
     const METHOD: reqwest::Method = reqwest::Method::GET;
-}
-
-#[derive(Clone, Debug)]
-pub enum ApiError {
-    Deserialization,
-    Http(StatusCode),
-    Timeout,
-    Connect,
-    Redirect,
-    Unknown,
-    Decode
-}
-
-impl From<serde_json::Error> for ApiError {
-    fn from(value: serde_json::Error) -> Self {
-        tracing::error!("Deserialization error {value}");
-
-        ApiError::Deserialization
-    }
-}
-
-impl From<reqwest::Error> for ApiError {
-    fn from(value: reqwest::Error) -> Self {
-        tracing::error!("Request error {value}");
-
-        if let Some(status) = value.status() {
-            ApiError::Http(status)
-        } else if value.is_timeout() {
-            ApiError::Timeout
-        } else if value.is_connect() {
-            ApiError::Connect
-        } else if value.is_redirect() {
-            ApiError::Redirect
-        } else if value.is_decode() {
-            ApiError::Decode
-        } else {
-            ApiError::Unknown
-        }
-    }
 }
 
 pub struct Session {
     pub token: String,
 }
+

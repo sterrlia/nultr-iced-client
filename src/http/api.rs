@@ -1,3 +1,4 @@
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -20,10 +21,14 @@ impl Default for Client {
 }
 
 impl Client {
-    pub async fn request<I, O, E>(&self, request: I, session: Option<Session>) -> Result<O, E>
+    pub async fn request<I, O, E>(
+        &self,
+        request: I,
+        session: Option<Session>,
+    ) -> Result<O, Error<E>>
     where
         O: for<'de> Deserialize<'de>,
-        E: From<reqwest::Error> + From<serde_json::Error>,
+        E: for<'de> Deserialize<'de>,
         I: HttpRequest<O, E> + Serialize,
     {
         request
@@ -35,7 +40,7 @@ impl Client {
 pub trait HttpRequest<O, E>
 where
     O: for<'de> Deserialize<'de>,
-    E: From<reqwest::Error> + From<serde_json::Error>,
+    E: for<'de> Deserialize<'de>,
     Self: Sized + Serialize,
 {
     const ENDPOINT: &'static str;
@@ -50,7 +55,7 @@ where
         client: reqwest::Client,
         base_url: Url,
         session: Option<Session>,
-    ) -> Result<O, E> {
+    ) -> Result<O, Error<E>> {
         let endpoint_url = Self::get_url(base_url);
         let method = Self::METHOD;
 
@@ -58,11 +63,7 @@ where
 
         let request_builder = match method {
             reqwest::Method::GET => request_builder.query(&self),
-            _ => {
-                let body = serde_json::to_string(&self)?;
-
-                request_builder.body(body)
-            }
+            _ => request_builder.json(&self),
         };
 
         let request_builder = if let Some(session) = session {
@@ -71,11 +72,87 @@ where
             request_builder
         };
 
-        let response = request_builder.send().await?;
+        let response = request_builder
+            .send()
+            .await
+            .map_err(|err| Error::<E>::from(err))?;
 
-        let response_body = response.text().await?;
-        let result: O = serde_json::from_str(response_body.as_ref())?;
+        let status = response.status();
 
-        Ok(result)
+        if status.is_success() {
+            let body_raw = response.text().await.map_err(|err| Error::<E>::from(err))?;
+
+            let body: O = serde_json::from_str(body_raw.as_str())
+                .map_err(|err| Error::<E>::from((err, body_raw)))?;
+
+            Ok(body)
+        } else {
+            let body_raw = response.text().await.map_err(|err| Error::<E>::from(err))?;
+
+            let body: E = serde_json::from_str(body_raw.as_str())
+                .map_err(|err| Error::<E>::from((err, body_raw)))?;
+
+            Err(Error::Api(body))
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Error<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    Request(RequestError),
+    Api(T),
+}
+
+#[derive(Clone, Debug)]
+pub enum RequestError {
+    Deserialize,
+    Builder,
+    Http(StatusCode),
+    Timeout,
+    Connect,
+    Redirect,
+    Unknown,
+    Decode,
+}
+
+impl<T> From<(serde_json::Error, String)> for Error<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    fn from(value: (serde_json::Error, String)) -> Self {
+        let (error, body) = value;
+        tracing::error!("Deserialization error {:?}, body was: '{}'", error, body);
+
+        Error::<T>::Request(RequestError::Deserialize)
+    }
+}
+
+impl<T> From<reqwest::Error> for Error<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    fn from(value: reqwest::Error) -> Self {
+        tracing::error!("Request error {:?}", value);
+
+        let request_error = if let Some(status) = value.status() {
+            RequestError::Http(status)
+        } else if value.is_timeout() {
+            RequestError::Timeout
+        } else if value.is_connect() {
+            RequestError::Connect
+        } else if value.is_redirect() {
+            RequestError::Redirect
+        } else if value.is_decode() {
+            RequestError::Decode
+        } else if value.is_builder() {
+            RequestError::Builder
+        } else {
+            RequestError::Unknown
+        };
+
+        Error::<T>::Request(request_error)
     }
 }

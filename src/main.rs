@@ -1,6 +1,6 @@
 mod ui;
 mod util;
-use client_lib::config;
+use nultr_client_lib::config;
 use ui::Ui;
 use tracing_subscriber;
 

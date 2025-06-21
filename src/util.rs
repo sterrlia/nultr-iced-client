@@ -1,5 +1,5 @@
 use iced::Task;
-use shared_lib::util::MonoResult;
+use nultr_shared_lib::util::MonoResult;
 
 pub fn task_perform<F, T>(future: F) -> Task<T>
 where

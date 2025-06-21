@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use iced::{Element, Task};
 use rust_api_integrator::http::client::{HttpClient, BasicHttpClientTrait};
-use shared_lib::{
+use nultr_shared_lib::{
     request::{AuthUserData, LoginRequest, LoginResponse},
     util::MonoResult,
 };

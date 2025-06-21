@@ -5,7 +5,7 @@ use iced::{
         scrollable, stack, text, text_input, vertical_space,
     },
 };
-use shared_lib::request::AuthUserData;
+use nultr_shared_lib::request::AuthUserData;
 
 use super::{Event, State, User, UserMessage, Widget};
 

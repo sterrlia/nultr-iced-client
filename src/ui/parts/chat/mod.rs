@@ -1,14 +1,14 @@
 mod view;
 
 use chrono::{NaiveDateTime, Utc};
-use client_lib::{
+use nultr_client_lib::{
     config,
     util::create_stub_sender,
     ws::{self, controller::SendEvent},
 };
 use iced::{Element, Task, widget::scrollable};
 use rust_api_integrator::http::client::{HttpClient, AuthenticatedHttpClientTrait};
-use shared_lib::{request::{
+use nultr_shared_lib::{request::{
     AuthUserData, GetMessagesRequest, GetMessagesResponse, GetUsersRequest, GetUsersResponse,
     WsMessageRequest,
 }, util::MonoResult};

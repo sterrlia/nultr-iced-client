@@ -2,10 +2,10 @@ mod view;
 
 use std::sync::Arc;
 
-use client_lib::ws;
+use nultr_client_lib::ws;
 use iced::{Element, Task, widget::scrollable};
 use rust_api_integrator::http::client::{RequestError, UnexpectedHttpError};
-use shared_lib::request::{
+use nultr_shared_lib::request::{
     AuthenticatedUnexpectedErrorResponse, GetMessagesErrorResponse, GetUsersErrorResponse,
     LoginErrorResponse, UnexpectedErrorResponse,
 };

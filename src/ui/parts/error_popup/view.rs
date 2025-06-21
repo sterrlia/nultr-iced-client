@@ -1,12 +1,16 @@
 use iced::{
-    alignment, widget::{button, column, container, horizontal_space, row, scrollable, text, vertical_space, Container}, Element, Length
+    Element, Length, alignment,
+    widget::{
+        Container, button, column, container, horizontal_space, row, scrollable, text,
+        vertical_space,
+    },
 };
 
-use super::{Event, Widget};
+use super::{Event, State, Widget};
 
 impl Widget {
-    pub fn view(&self) -> Element<Event> {
-        let error_messages_widget = self.get_error_messages_widget();
+    pub fn view(&self, state: &State) -> Element<Event> {
+        let error_messages_widget = self.get_error_messages_widget(state);
 
         container(error_messages_widget)
             .height(Length::Fill)
@@ -15,9 +19,8 @@ impl Widget {
             .into()
     }
 
-    pub fn get_error_messages_widget(&self) -> Container<'_, Event> {
-        let error_column = self
-            .state
+    pub fn get_error_messages_widget(&self, state: &State) -> Container<'_, Event> {
+        let error_column = state
             .error_messages
             .iter()
             .enumerate()
@@ -32,7 +35,7 @@ impl Widget {
                 .spacing(10)
                 .align_x(alignment::Horizontal::Right),
         )
-        .id(self.state.error_messages_scrollable.clone())
+        .id(state.error_messages_scrollable.clone())
         .height(Length::Fill);
 
         container(

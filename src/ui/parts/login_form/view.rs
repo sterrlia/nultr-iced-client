@@ -1,20 +1,20 @@
 use iced::{
     Element, Length, alignment,
-    widget::{button, column, container, row, text_input, vertical_space},
+    widget::{button, column, container, text_input},
 };
 
-use super::{Event, Widget};
+use super::{Event, State, Widget};
 
 impl Widget {
-    pub fn view(&self) -> Element<Event> {
-        let username_input = text_input("Type username", &self.state.username)
+    pub fn view(&self, state: &State) -> Element<Event> {
+        let username_input = text_input("Type username", state.username.as_str())
             .on_input(Event::UsernameChanged)
             .padding(10)
             .size(16)
             .width(Length::Fill)
             .style(|_, _| self.theme.input);
 
-        let password_input = text_input("Type password", &self.state.password)
+        let password_input = text_input("Type password", state.password.as_str())
             .on_input(Event::PasswordChanged)
             .padding(10)
             .size(16)

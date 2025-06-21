@@ -5,15 +5,14 @@ use iced::{
         scrollable, stack, text, text_input, vertical_space,
     },
 };
+use shared_lib::request::AuthUserData;
 
-use crate::auth;
-
-use super::{Event, User, UserMessage, Widget};
+use super::{Event, State, User, UserMessage, Widget};
 
 impl Widget {
-    pub fn view(&self, logged_user_data: auth::UserData) -> Element<Event> {
-        let chat_widget = self.get_chat_widget(logged_user_data);
-        let user_container = self.get_users_widget();
+    pub fn view(&self, state: &State, user_data: AuthUserData) -> Element<Event> {
+        let chat_widget = self.get_chat_widget(&state, user_data);
+        let user_container = self.get_users_widget(&state);
 
         container(row![
             user_container
@@ -29,16 +28,20 @@ impl Widget {
         .into()
     }
 
-    pub fn get_chat_widget(&self, logged_user_data: auth::UserData) -> Container<'_, Event> {
-        let message_container = self.get_messages_widget(logged_user_data.user_id);
-        let input_row = match self.state.connection_state {
-            super::ConnectionState::Connected => self.get_input_row_widget(),
+    pub fn get_chat_widget(
+        &self,
+        state: &State,
+        user_data: AuthUserData,
+    ) -> Container<'_, Event> {
+        let input_row = match state.connection_state.clone() {
+            super::ConnectionState::Connected => self.get_input_row_widget(state),
             super::ConnectionState::Disconnected => self.get_connect_btn_widget(),
         };
+        let message_container = self.get_messages_widget(state, user_data);
 
         container(stack![
             message_container.width(Length::Fill),
-            container(input_row.width(Length::Fixed(600.0)))
+            container(input_row.max_width(600))
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .align_y(alignment::Vertical::Bottom)
@@ -48,20 +51,27 @@ impl Widget {
         .align_x(alignment::Horizontal::Center)
     }
 
-    pub fn get_messages_widget(&self, current_user_id: i32) -> Container<'_, Event> {
-        let messages: Element<_> = self
-            .state
+    pub fn get_messages_widget(
+        &self,
+        state: &State,
+        user_data: AuthUserData,
+    ) -> Container<'_, Event> {
+        let messages: Element<_> = state
             .messages
             .iter()
             .fold(column![], |col, msg| {
-                let row = self.render_message(msg, current_user_id);
+                let row = self.render_message(msg, user_data.user_id);
                 col.push(row)
             })
             .push(vertical_space().height(90))
             .into();
 
-        let scrollable_messages = scrollable(messages)
-            .id(self.state.messages_scrollable.clone());
+        let scrollable_messages = scrollable(
+            container(container(messages).max_width(800))
+                .align_x(alignment::Horizontal::Center)
+                .width(Length::Fill),
+        )
+        .id(state.messages_scrollable.clone());
 
         let scrollable_container = container(column![
             vertical_space().height(Length::Fill),
@@ -75,56 +85,53 @@ impl Widget {
     }
 
     fn render_message(&self, msg: &UserMessage, current_user_id: i32) -> Column<'_, Event> {
-        struct RenderData {
-            content: String,
-            left_portion: u16,
-            right_portion: u16,
-        }
+        let text = text(msg.content.clone()).size(16.0);
+        let bubble = container(
+            container(text)
+                .style(|_| self.theme.message)
+                .width(Length::Shrink)
+                .padding(12),
+        );
 
-        let message_render_data = if msg.user_id == current_user_id {
-            RenderData {
-                content: msg.content.clone(),
-                left_portion: 3,
-                right_portion: 7,
-            }
+        let row = if msg.user_id == current_user_id {
+            row![
+                horizontal_space().width(Length::FillPortion(7)),
+                bubble
+                    .align_x(alignment::Horizontal::Right)
+                    .width(Length::FillPortion(3)),
+            ]
         } else {
-            RenderData {
-                content: msg.content.clone(),
-                left_portion: 7,
-                right_portion: 3,
-            }
+            row![
+                bubble
+                    .align_x(alignment::Horizontal::Left)
+                    .width(Length::FillPortion(3)),
+                horizontal_space().width(Length::FillPortion(7)),
+            ]
         };
 
-        let text = text(message_render_data.content).size(16.0);
-        let bubble = container(text).style(|_| self.theme.message).padding(12);
-
-        column![row![
-            container(bubble).width(Length::Fill),
-        //    horizontal_space().width(Length::FillPortion(message_render_data.right_portion)),
-        ],]
-        .width(Length::FillPortion(10))
-        .align_x(alignment::Horizontal::Left)
-        .padding(Padding {
-            top: 0.0,
-            right: 30.0,
-            bottom: 30.0,
-            left: 30.0,
-        })
+        column![row]
+            .width(Length::FillPortion(10))
+            .align_x(alignment::Horizontal::Left)
+            .padding(Padding {
+                top: 0.0,
+                right: 30.0,
+                bottom: 30.0,
+                left: 30.0,
+            })
     }
 
-    fn get_users_widget(&self) -> Container<'_, Event> {
-        let messages: Element<_> = self
-            .state
+    fn get_users_widget(&self, state: &State) -> Container<'_, Event> {
+        let messages: Element<_> = state
             .users
             .iter()
             .fold(column![], |col, user| {
-                let row = self.get_user_widget(user);
+                let row = self.get_user_widget(state.selected_user_id, user);
                 col.push(row)
             })
             .into();
 
         let scrollable_messages = scrollable(messages)
-            .id(self.state.users_scrollable.clone())
+            .id(state.users_scrollable.clone())
             .width(Length::Fill)
             .height(Length::Fill);
 
@@ -138,7 +145,7 @@ impl Widget {
         .style(|_: &Theme| self.theme.users_container)
     }
 
-    fn get_user_widget(&self, user: &User) -> Button<'_, Event> {
+    fn get_user_widget(&self, selected_user_id: Option<i32>, user: &User) -> Button<'_, Event> {
         let profile_image_btn = button(Svg::new(self.theme.profile_image_svg.clone()))
             .height(40)
             .width(40)
@@ -152,7 +159,7 @@ impl Widget {
         .padding(5)
         .align_x(alignment::Horizontal::Left);
 
-        let btn_style = if self.state.selected_user_id == Some(user.id) {
+        let btn_style = if selected_user_id == Some(user.id) {
             self.theme.active_chat_btn
         } else {
             self.theme.chat_btn
@@ -164,8 +171,8 @@ impl Widget {
             .style(move |_, _| btn_style)
     }
 
-    pub fn get_input_row_widget(&self) -> Container<'_, Event> {
-        let message_input = text_input("Type a message...", &self.state.input_value)
+    pub fn get_input_row_widget(&self, state: &State) -> Container<'_, Event> {
+        let message_input = text_input("Type a message...", state.input_value.as_str())
             .on_input(Event::InputChanged)
             .padding(10)
             .size(16)

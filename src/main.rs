@@ -1,9 +1,6 @@
-mod config;
 mod ui;
-mod ws;
-mod http;
-mod auth;
-
+mod util;
+use client_lib::config;
 use ui::Ui;
 use tracing_subscriber;
 

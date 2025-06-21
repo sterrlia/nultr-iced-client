@@ -25,7 +25,7 @@ tracing-subscriber = "0.3.19"
 url = { version = "2.5.4", features = ["std", "serde"] }
 url_serde = "0.2.0"
 uuid = { version = "1.17.0", features = ["serde", "v4"] }
-procmacrolib = { path = "../procmacrolib" }
-shared_lib = { path = "../shared_lib" }
-client_lib = { path = "../client_lib" }
+procmacro-lib = { path = "../procmacro-lib" }
+shared-lib = { path = "../shared-lib" }
+client-lib = { path = "../client-lib" }
 rust-api-integrator = { path = "../rust-api-integrator", features = []}

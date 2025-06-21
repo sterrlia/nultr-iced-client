@@ -1,4 +1,4 @@
-use procmacrolib::{color, svg_handle};
+use procmacro_lib::{color, svg_handle};
 use iced::{
     Background, Border, Color, Shadow,
     border::Radius,

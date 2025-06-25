@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use nultr_client_lib::ws;
 use iced::{Element, Task, widget::scrollable};
-use rust_api_integrator::http::client::{RequestError, UnexpectedHttpError};
+use rust_api_kit::http::client::{RequestError, UnexpectedHttpError};
 use nultr_shared_lib::request::{
     AuthenticatedUnexpectedErrorResponse, GetMessagesErrorResponse, GetUsersErrorResponse,
     LoginErrorResponse, UnexpectedErrorResponse,

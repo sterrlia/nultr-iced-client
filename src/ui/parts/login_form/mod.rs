@@ -3,7 +3,7 @@ mod view;
 use std::sync::Arc;
 
 use iced::{Element, Task};
-use rust_api_integrator::http::client::{HttpClient, BasicHttpClientTrait};
+use rust_api_kit::http::client::{HttpClient, BasicHttpClientTrait};
 use nultr_shared_lib::{
     request::{AuthUserData, LoginRequest, LoginResponse},
     util::MonoResult,

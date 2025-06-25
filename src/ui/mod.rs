@@ -7,7 +7,7 @@ use std::sync::Arc;
 use nultr_client_lib::{config, ws};
 use iced::{Subscription, Task};
 use parts::{chat, error_popup, login_form};
-use rust_api_integrator::http::client::{BearerToken, HttpClient, HttpClientTrait};
+use rust_api_kit::http::client::{BearerToken, HttpClient, HttpClientTrait};
 use nultr_shared_lib::request::AuthUserData;
 
 #[derive(Debug, Clone)]

@@ -7,7 +7,7 @@ use nultr_client_lib::{
     ws::{self, controller::SendEvent},
 };
 use iced::{Element, Task, widget::scrollable};
-use rust_api_integrator::http::client::{HttpClient, AuthenticatedHttpClientTrait};
+use rust_api_kit::http::client::{HttpClient, AuthenticatedHttpClientTrait};
 use nultr_shared_lib::{request::{
     AuthUserData, GetMessagesRequest, GetMessagesResponse, GetUsersRequest, GetUsersResponse,
     WsMessageRequest,

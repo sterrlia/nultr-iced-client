@@ -2,6 +2,7 @@
 name = "nultr-iced-client"
 version = "0.1.0"
 edition = "2024"
+authors = ["sterrlia <dev@sterrlia.com>"]
 license = "GPL-3.0-or-later"
 license-file = "LICENSE"
 
@@ -29,5 +30,5 @@ url_serde = "0.2.0"
 uuid = { version = "1.17.0", features = ["serde", "v4"] }
 nultr-procmacro-lib = { path = "../procmacro-lib" }
 nultr-shared-lib = { path = "../shared-lib" }
-nultr-client-lib = { path = "../client-lib" }
+nultr-client-lib = { path = "../client-lib", features = ["iced-integration"]}
 rust-api-integrator = { path = "../rust-api-integrator", features = []}

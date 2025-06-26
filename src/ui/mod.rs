@@ -145,6 +145,6 @@ impl Ui {
     }
 
     pub fn subscription(&self) -> Subscription<Event> {
-        Subscription::run(ws::controller::iced_subscription).map(Event::FromWs)
+        Subscription::run(ws::controller::iced_integration::iced_subscription).map(Event::FromWs)
     }
 }

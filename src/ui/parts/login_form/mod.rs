@@ -82,7 +82,7 @@ impl Widget {
             password: state.password.clone(),
         };
 
-        let result = self.http_client.clone().request(request).await?;
+        let result = self.http_client.request(request).await?;
         Ok(match result {
             Ok(response) => Event::LoginResult(response).event(),
             Err(error) => error_popup::ErrorEvent::Login(error).event(),

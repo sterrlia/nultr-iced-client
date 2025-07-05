@@ -6,8 +6,8 @@
 
 ### 🔐 Login screen
 
-![Login](images/login.png)
+![Login](screenshots/login.png)
 
 ### 💬 Chat screen
 
-![Chat](images/chat.png)
+![Chat](screenshots/chat.png)

@@ -2,13 +2,14 @@ mod view;
 
 use std::sync::Arc;
 
-use nultr_client_lib::ws;
 use iced::{Element, Task, widget::scrollable};
-use rust_api_kit::http::client::{RequestError, UnexpectedHttpError};
+use nultr_client_lib::{errors::IntoErrorMessage, ws::{self, controller::SendEvent}};
 use nultr_shared_lib::request::{
-    AuthenticatedUnexpectedErrorResponse, GetMessagesErrorResponse, GetUsersErrorResponse,
-    LoginErrorResponse, UnexpectedErrorResponse,
+    AuthenticatedUnexpectedErrorResponse, CreatePrivateRoomErrorResponse, GetMessagesErrorResponse,
+    GetRoomsErrorResponse, GetUsersErrorResponse, LoginErrorResponse, UnexpectedErrorResponse,
 };
+use rust_api_kit::http::client::{RequestError, UnexpectedHttpError};
+use tokio::sync::mpsc;
 
 use crate::ui::{self, WidgetErrorEvent, theme};
 
@@ -36,6 +37,8 @@ pub enum ErrorEvent {
     Login(LoginErrorResponse),
     GetMessages(GetMessagesErrorResponse),
     GetUsers(GetUsersErrorResponse),
+    CreateRoom(CreatePrivateRoomErrorResponse),
+    GetRooms(GetRoomsErrorResponse),
 }
 
 impl WidgetErrorEvent for ErrorEvent {
@@ -113,13 +116,7 @@ impl Widget {
 
                 ErrorEvent::String(message.to_string()).task()
             }
-            ErrorEvent::Login(error) => {
-                let message = match error {
-                    LoginErrorResponse::AccessDenied => "User not found",
-                };
-
-                ErrorEvent::String(message.to_string()).task()
-            }
+            ErrorEvent::Login(error) => ErrorEvent::String(error.into_error_message()).task(),
             ErrorEvent::GetUsers(error) => {
                 let message = match error {
                     _ => "Unknown error",
@@ -127,10 +124,13 @@ impl Widget {
 
                 ErrorEvent::String(message.to_string()).task()
             }
-            ErrorEvent::GetMessages(error) => {
+            ErrorEvent::GetMessages(error) => ErrorEvent::String(error.into_error_message()).task(),
+            ErrorEvent::GetRooms(error) => {
+                ErrorEvent::String(error.into_error_message()).task()
+            }
+            ErrorEvent::CreateRoom(error) => {
                 let message = match error {
-                    GetMessagesErrorResponse::UserNotFound => "User not found",
-                    GetMessagesErrorResponse::AccessDenied => "Access denied",
+                    _ => "Unknown error",
                 };
 
                 ErrorEvent::String(message.to_string()).task()
@@ -148,6 +148,8 @@ impl Widget {
             ws::controller::Error::Unknown => "Unknown error",
             ws::controller::Error::WrongRequestFormat => "Wrong request format",
             ws::controller::Error::UserNotFound => "User not found",
+            ws::controller::Error::MessageNotFound(_) => "Unknown error",
+            ws::controller::Error::NotMemberOfRoom => "User is not a member of room",
         };
 
         ErrorEvent::String(message.to_string()).task()

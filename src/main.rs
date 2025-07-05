@@ -2,7 +2,6 @@ mod ui;
 mod util;
 use nultr_client_lib::config;
 use ui::Ui;
-use tracing_subscriber;
 
 pub fn main() -> iced::Result {
     tracing_subscriber::fmt()
@@ -11,7 +10,7 @@ pub fn main() -> iced::Result {
 
     config::get_variables();
 
-    iced::application("Chat", Ui::update, Ui::view)
+    iced::application("Nultr", Ui::update, Ui::view)
         .subscription(Ui::subscription)
         .run()
 }

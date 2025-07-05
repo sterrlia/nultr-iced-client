@@ -1,9 +1,9 @@
-use nultr_procmacro_lib::{color, svg_handle};
 use iced::{
     Background, Border, Color, Shadow,
     border::Radius,
     widget::{Svg, button, container, svg, text_input},
 };
+use nultr_procmacro_lib::{color, svg_handle};
 
 pub struct Collection {
     pub app: App,
@@ -61,7 +61,20 @@ impl Default for Collection {
         };
         let chat = ChatTheme {
             send_btn_svg: svg_handle!("arrow-up-from-dot"),
+            create_room_svg: svg_handle!("plus"),
+            message_sent_svg: svg_handle!("sent"),
+            message_read_svg: svg_handle!("read"),
+            message_received_svg: svg_handle!("received"),
             profile_image_svg: svg_handle!("user"),
+            show_user_search_btn: button::Style {
+                background: Some(Background::Color(color!("#D3D3D3"))),
+                text_color: color!("#000000"),
+                border: Border {
+                    radius: Radius::new(100),
+                    ..Border::default()
+                },
+                shadow: Shadow::default(),
+            },
             send_btn: button::Style {
                 background: Some(Background::Color(color!("#D3D3D3"))),
                 text_color: color!("#000000"),
@@ -104,9 +117,14 @@ impl Default for Collection {
                 },
                 ..container::Style::default()
             },
-            users_container: container::Style {
+            rooms_container: container::Style {
                 text_color: Some(color!("#D3D3D3")),
                 background: Some(Background::Color(color!("#181818"))),
+                ..container::Style::default()
+            },
+            users_container: container::Style {
+                text_color: Some(color!("#D3D3D3")),
+                background: Some(Background::Color(color!("#212121"))),
                 ..container::Style::default()
             },
             message_container: container::Style {
@@ -179,12 +197,18 @@ pub struct ErrorPopup {
 
 pub struct ChatTheme {
     pub send_btn_svg: svg::Handle,
+    pub create_room_svg: svg::Handle,
+    pub message_sent_svg: svg::Handle,
+    pub message_received_svg: svg::Handle,
+    pub message_read_svg: svg::Handle,
     pub send_btn: button::Style,
     pub connect_btn: button::Style,
+    pub show_user_search_btn: button::Style,
     pub profile_image_svg: svg::Handle,
     pub profile_image_btn: button::Style,
     pub chat_btn: button::Style,
     pub active_chat_btn: button::Style,
+    pub rooms_container: container::Style,
     pub users_container: container::Style,
     pub input: text_input::Style,
     pub input_container: container::Style,

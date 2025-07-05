@@ -3,13 +3,16 @@ mod view;
 use std::sync::Arc;
 
 use iced::{Element, Task};
-use rust_api_kit::http::client::{HttpClient, BasicHttpClientTrait};
 use nultr_shared_lib::{
     request::{AuthUserData, LoginRequest, LoginResponse},
     util::MonoResult,
 };
+use rust_api_kit::http::client::{BasicHttpClientTrait, HttpClient};
 
-use crate::{ui::{self, theme, WidgetErrorEvent}, util::task_perform};
+use crate::{
+    ui::{self, WidgetErrorEvent, theme},
+    util::task_perform,
+};
 
 use super::error_popup;
 

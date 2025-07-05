@@ -1,7 +1,7 @@
 use iced::{
     Background, Border, Color, Shadow,
     border::Radius,
-    widget::{Svg, button, container, svg, text_input},
+    widget::{button, container, svg, text_input},
 };
 use nultr_procmacro_lib::{color, svg_handle};
 

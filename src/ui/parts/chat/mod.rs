@@ -1,7 +1,7 @@
 mod view;
 
 use chrono::{NaiveDateTime, Utc};
-use iced::{Element, Task, widget::scrollable};
+use iced::{Task, widget::scrollable};
 use nultr_client_lib::{
     config,
     util::create_stub_sender,
@@ -16,7 +16,7 @@ use nultr_shared_lib::{
     util::MonoResult,
 };
 use rust_api_kit::http::client::{AuthenticatedHttpClientTrait, BearerToken, HttpClient};
-use std::{cmp, sync::Arc};
+use std::sync::Arc;
 use tokio::sync::mpsc;
 use uuid::Uuid;
 

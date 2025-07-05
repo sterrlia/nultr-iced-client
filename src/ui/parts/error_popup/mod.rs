@@ -2,14 +2,13 @@ mod view;
 
 use std::sync::Arc;
 
-use iced::{Element, Task, widget::scrollable};
-use nultr_client_lib::{errors::IntoErrorMessage, ws::{self, controller::SendEvent}};
+use iced::{Task, widget::scrollable};
+use nultr_client_lib::{errors::IntoErrorMessage, ws::{self}};
 use nultr_shared_lib::request::{
     AuthenticatedUnexpectedErrorResponse, CreatePrivateRoomErrorResponse, GetMessagesErrorResponse,
     GetRoomsErrorResponse, GetUsersErrorResponse, LoginErrorResponse, UnexpectedErrorResponse,
 };
 use rust_api_kit::http::client::{RequestError, UnexpectedHttpError};
-use tokio::sync::mpsc;
 
 use crate::ui::{self, WidgetErrorEvent, theme};
 

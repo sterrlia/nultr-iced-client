@@ -2,7 +2,7 @@ mod view;
 
 use std::sync::Arc;
 
-use iced::{Element, Task};
+use iced::Task;
 use nultr_shared_lib::{
     request::{AuthUserData, LoginRequest, LoginResponse},
     util::MonoResult,

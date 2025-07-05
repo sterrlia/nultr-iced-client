@@ -118,7 +118,7 @@ impl Ui {
                 self.chat.clone().update(&mut self.state.chat, user_data, event)
             }
 
-            (AuthState::Authenticated(user_data), Event::FromWs(result)) => match result {
+            (AuthState::Authenticated(_), Event::FromWs(result)) => match result {
                 Ok(event) => self.chat.clone().ws_update(&mut self.state.chat, event),
                 Err(error) => self.error_popup.clone().ws_update(error),
             },

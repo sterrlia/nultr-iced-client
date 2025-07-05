@@ -117,23 +117,15 @@ impl Widget {
                 ErrorEvent::String(message.to_string()).task()
             }
             ErrorEvent::Login(error) => ErrorEvent::String(error.into_error_message()).task(),
-            ErrorEvent::GetUsers(error) => {
-                let message = match error {
-                    _ => "Unknown error",
-                };
-
-                ErrorEvent::String(message.to_string()).task()
+            ErrorEvent::GetUsers(_) => {
+                ErrorEvent::String("Unknown error".to_string()).task()
             }
             ErrorEvent::GetMessages(error) => ErrorEvent::String(error.into_error_message()).task(),
             ErrorEvent::GetRooms(error) => {
                 ErrorEvent::String(error.into_error_message()).task()
             }
-            ErrorEvent::CreateRoom(error) => {
-                let message = match error {
-                    _ => "Unknown error",
-                };
-
-                ErrorEvent::String(message.to_string()).task()
+            ErrorEvent::CreateRoom(_) => {
+                ErrorEvent::String("Unknown error".to_string()).task()
             }
         }
     }

@@ -13,6 +13,7 @@ use super::{
 };
 
 impl Widget {
+    #![allow(mismatched_lifetime_syntaxes)]
     pub fn view(&self, state: &State, _: AuthUserData) -> Element<Event> {
         let chat_field_widget = match &state.chat_area_state {
             ChatAreaState::RoomNotSelected => self.get_users_widget(state),

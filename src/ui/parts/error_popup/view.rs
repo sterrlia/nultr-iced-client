@@ -9,6 +9,7 @@ use iced::{
 use super::{Event, State, Widget};
 
 impl Widget {
+    #![allow(mismatched_lifetime_syntaxes)]
     pub fn view(&self, state: &State) -> Element<Event> {
         let error_messages_widget = self.get_error_messages_widget(state);
 

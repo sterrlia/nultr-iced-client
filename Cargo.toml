@@ -30,4 +30,4 @@ uuid = { version = "1.17.0", features = ["serde", "v4"] }
 nultr-procmacro-lib = { path = "../procmacro-lib" }
 nultr-shared-lib = { path = "../shared-lib" }
 nultr-client-lib = { path = "../client-lib", features = ["iced-integration"]}
-rust-api-kit = { version = "0.1.1", features = ["logs"]}
+rust-api-kit = { version = "0.1.2", features = ["tracing"]}

@@ -3,7 +3,10 @@ mod view;
 use std::sync::Arc;
 
 use iced::{Task, widget::scrollable};
-use nultr_client_lib::{errors::IntoErrorMessage, ws::{self}};
+use nultr_client_lib::{
+    errors::IntoErrorMessage,
+    ws::{self},
+};
 use nultr_shared_lib::request::{
     AuthenticatedUnexpectedErrorResponse, CreatePrivateRoomErrorResponse, GetMessagesErrorResponse,
     GetRoomsErrorResponse, GetUsersErrorResponse, LoginErrorResponse, UnexpectedErrorResponse,
@@ -116,16 +119,10 @@ impl Widget {
                 ErrorEvent::String(message.to_string()).task()
             }
             ErrorEvent::Login(error) => ErrorEvent::String(error.into_error_message()).task(),
-            ErrorEvent::GetUsers(_) => {
-                ErrorEvent::String("Unknown error".to_string()).task()
-            }
+            ErrorEvent::GetUsers(_) => ErrorEvent::String("Unknown error".to_string()).task(),
             ErrorEvent::GetMessages(error) => ErrorEvent::String(error.into_error_message()).task(),
-            ErrorEvent::GetRooms(error) => {
-                ErrorEvent::String(error.into_error_message()).task()
-            }
-            ErrorEvent::CreateRoom(_) => {
-                ErrorEvent::String("Unknown error".to_string()).task()
-            }
+            ErrorEvent::GetRooms(error) => ErrorEvent::String(error.into_error_message()).task(),
+            ErrorEvent::CreateRoom(_) => ErrorEvent::String("Unknown error".to_string()).task(),
         }
     }
 

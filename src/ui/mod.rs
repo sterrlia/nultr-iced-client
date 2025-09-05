@@ -4,11 +4,11 @@ mod view;
 
 use std::sync::Arc;
 
-use nultr_client_lib::{config, ws};
 use iced::{Subscription, Task};
+use nultr_client_lib::{config, ws};
+use nultr_shared_lib::request::AuthUserData;
 use parts::{chat, error_popup, login_form};
 use rust_api_kit::http::client::HttpClient;
-use nultr_shared_lib::request::AuthUserData;
 
 #[derive(Debug, Clone)]
 pub enum Event {
@@ -101,9 +101,10 @@ impl Default for Ui {
 impl Ui {
     pub fn update(&mut self, event: Event) -> Task<Event> {
         match (self.auth_state.clone(), event) {
-            (_, Event::ErrorPopup(event)) => {
-                self.error_popup.clone().update(&mut self.state.error_popup, event)
-            }
+            (_, Event::ErrorPopup(event)) => self
+                .error_popup
+                .clone()
+                .update(&mut self.state.error_popup, event),
 
             (_, Event::FromWs(Ok(ws::controller::Event::Ready(sender)))) => {
                 self.state.chat.ws_sender = sender;
@@ -115,7 +116,9 @@ impl Ui {
                 self.login.clone().update(&mut self.state.login_form, event)
             }
             (AuthState::Authenticated(user_data), Event::Chat(event)) => {
-                self.chat.clone().update(&mut self.state.chat, user_data, event)
+                self.chat
+                    .clone()
+                    .update(&mut self.state.chat, user_data, event)
             }
 
             (AuthState::Authenticated(_), Event::FromWs(result)) => match result {

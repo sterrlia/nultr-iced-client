@@ -4,6 +4,7 @@ use iced::{Element, widget::stack};
 use super::{AuthState, Event, Ui};
 
 impl Ui {
+    #![allow(mismatched_lifetime_syntaxes)]
     pub fn view(&self) -> Element<Event> {
         let error_popup = self
             .error_popup

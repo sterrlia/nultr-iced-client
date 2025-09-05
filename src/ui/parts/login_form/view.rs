@@ -6,6 +6,7 @@ use iced::{
 use super::{Event, State, Widget};
 
 impl Widget {
+    #![allow(mismatched_lifetime_syntaxes)]
     pub fn view(&self, state: &State) -> Element<Event> {
         let username_input = text_input("Type username", state.username.as_str())
             .on_input(Event::UsernameChanged)

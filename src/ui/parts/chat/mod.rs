@@ -73,6 +73,7 @@ pub enum ChatMessage {
     Incoming(IncomingChatMessage),
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct IncomingChatMessage {
     pub user_id: Identifier,
@@ -81,6 +82,7 @@ pub struct IncomingChatMessage {
     pub created_at: NaiveDateTime,
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub struct OutgoingChatMessage {
     pub user_id: Identifier,
@@ -439,10 +441,10 @@ impl Widget {
                 Task::none()
             }
             ws::controller::Event::MessagesRead(response) => {
-                if let ChatAreaState::RoomSelected(chat_area_state) = &state.chat_area_state {
-                    if chat_area_state.room_id != response.room_id {
-                        return Task::none();
-                    }
+                if let ChatAreaState::RoomSelected(chat_area_state) = &state.chat_area_state
+                    && chat_area_state.room_id != response.room_id
+                {
+                    return Task::none();
                 }
 
                 Self::change_outgoing_messages_state(

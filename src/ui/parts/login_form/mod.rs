@@ -29,6 +29,7 @@ impl Event {
         ui::Event::LoginForm(self)
     }
 
+    #[allow(dead_code)]
     pub fn task(self) -> Task<ui::Event> {
         self.event().task()
     }
